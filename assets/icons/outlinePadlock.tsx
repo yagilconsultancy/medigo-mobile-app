@@ -1,0 +1,19 @@
+import Svg, { Path } from "react-native-svg";
+import useTheme from "../../src/hooks/useThemes";
+
+function OutlinePadlock() {
+  const { colors } = useTheme();
+  return (
+    <Svg width="18" height="22" viewBox="0 0 18 22" fill="none">
+      <Path
+        d="M12.75 6.75H4.75M12.75 6.75C14.9591 6.75 16.75 8.54086 16.75 10.75V16.75C16.75 18.9591 14.9591 20.75 12.75 20.75H4.75C2.54086 20.75 0.75 18.9591 0.75 16.75V10.75C0.75 8.54086 2.54086 6.75 4.75 6.75M12.75 6.75V4.75C12.75 2.54086 10.9591 0.75 8.75 0.75C6.54086 0.75 4.75 2.54086 4.75 4.75V6.75M10.75 13.75C10.75 14.8546 9.85457 15.75 8.75 15.75C7.64543 15.75 6.75 14.8546 6.75 13.75C6.75 12.6454 7.64543 11.75 8.75 11.75C9.85457 11.75 10.75 12.6454 10.75 13.75Z"
+        stroke={colors.inputText}
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </Svg>
+  );
+}
+
+export default OutlinePadlock;
