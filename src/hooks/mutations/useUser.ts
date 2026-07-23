@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   UpdateProfilePayload,
-  UserProfileResponse,
 } from "../../types/auth.types";
 import userService from "../../api/services/userService";
 import {
@@ -14,6 +13,7 @@ import {
   UpdatePrivacyPayload,
   UpdateStatusPayload,
   UpdateVehiclePayload,
+  UserProfileResponse,
 } from "../../types/user.types";
 import { Alert } from "react-native";
 import { useUserStore } from "../../store/userStore";

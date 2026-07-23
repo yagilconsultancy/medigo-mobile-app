@@ -8,7 +8,6 @@ import {
 import useTheme from "../../../hooks/useThemes";
 import { commonStyles } from "../../../styles/commonStyles";
 import React from "react";
-import { ChevronRight, CreditCard, Plus } from "lucide-react-native";
 
 function BookingPayment({ isLoading, paymentMethods, vehicle, fare }: any) {
   const { colors } = useTheme();

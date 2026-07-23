@@ -12,10 +12,10 @@ import {
   VerifyOTPResponse,
   ResendOtpParams,
   ResendOtpResponse,
-  DriverRegisterRequest,
-  DriverRegisterResponse,
   RegisterDriverPayload,
   RegisterDriverResponse,
+  VerifyDriverInvitePayload,
+  VerifyDriverInviteResponse,
 } from "../../types/auth.types";
 import {
   ForgotPasswordRequest,
@@ -96,7 +96,20 @@ const authService = {
   registerDriver: async (
     payload: RegisterDriverPayload,
   ): Promise<RegisterDriverResponse> => {
-    const response = await apiClient.post("/auth/driver/register", payload);
+    const response = await apiClient.post("/auth/driver/register", payload, {
+      skipAuth: true,
+      suppressGlobalErrorToast: true,
+    } as any);
+    return response.data;
+  },
+
+  verifyDriverInvite: async (
+    payload: VerifyDriverInvitePayload,
+  ): Promise<VerifyDriverInviteResponse> => {
+    const response = await apiClient.post("/auth/driver/verify-invite", payload, {
+      skipAuth: true,
+      suppressGlobalErrorToast: true,
+    } as any);
     return response.data;
   },
 };

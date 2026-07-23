@@ -128,13 +128,27 @@ export interface DriverRegisterRequest {
   password: string;
 }
 
-export interface DriverRegisterResponse {
+export interface DriverAuthData {
+  access_token?: string;
+  refresh_token?: string;
+  token?: string;
+  user_id?: string;
+  email?: string;
+  phone?: string;
+  phone_number?: string;
+  message?: string;
+}
+
+export interface VerifyDriverInvitePayload {
+  invite_token: string;
+}
+
+export interface VerifyDriverInviteResponse {
   success: boolean;
   message: string;
-  data: {
-    user_id: string; // UUID
-    message: string;
-  };
+  data: DriverAuthData | null;
+  error_code?: string;
+  details?: unknown;
 }
 
 export interface RegisterDriverPayload {
@@ -142,5 +156,13 @@ export interface RegisterDriverPayload {
   password: string;
 }
 
-// The API returns a simple string on success (e.g., an auth token or success message)
-export type RegisterDriverResponse = string;
+export type RegisterDriverResponse =
+  | string
+  | {
+      success?: boolean;
+      message?: string;
+      data?: DriverAuthData | string | null;
+      access_token?: string;
+      refresh_token?: string;
+      token?: string;
+    };

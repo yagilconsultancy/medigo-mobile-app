@@ -21,6 +21,8 @@ import Input from "../../components/inputs/input";
 import { useLogin } from "../../hooks/mutations/useAuth";
 import { useUserStore } from "../../store/userStore";
 import { useUserProfile } from "../../hooks/queries/useUserProfile";
+import { getPostAuthRoute } from "../../utils/authRouting";
+import Toast from "react-native-toast-message";
 
 const getVerificationResumeDetails = (error: any) => {
   const responseData = error?.response?.data;
@@ -36,6 +38,31 @@ const getVerificationResumeDetails = (error: any) => {
   }
 
   return null;
+};
+
+const getLoginErrorMessage = (error: any) => {
+  const detail = error?.response?.data?.detail;
+
+  if (Array.isArray(detail)) {
+    return detail[0]?.msg || "Login failed. Please try again.";
+  }
+
+  if (typeof detail === "string") {
+    return detail;
+  }
+
+  return (
+    error?.response?.data?.message ||
+    "Invalid email, phone number, or password."
+  );
+};
+
+const showLoginErrorToast = (message: string) => {
+  Toast.show({
+    type: "errorToast",
+    text1: "Login failed",
+    text2: message,
+  });
 };
 
 function Login() {
@@ -72,9 +99,7 @@ function Login() {
 
           useUserStore.getState().setUser(profile);
 
-          const role = profile?.data?.role?.toLowerCase();
-          const targetRoute =
-            role === "driver" ? "DriverMainTabs" : "RiderMainTabs";
+          const targetRoute = getPostAuthRoute(profile);
 
           navigation.reset({
             index: 0,
@@ -97,6 +122,7 @@ function Login() {
         }
 
         console.log("Component error", error);
+        showLoginErrorToast(getLoginErrorMessage(error));
       },
     });
   };

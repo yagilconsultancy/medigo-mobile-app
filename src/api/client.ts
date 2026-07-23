@@ -8,7 +8,7 @@ import { storage } from "../utils/storage";
 import { ErrorResponse } from "../types/auth.types";
 import { useUserStore } from "../store/userStore";
 import { navigateAndReset } from "../utils/navigationRef";
-import { Alert } from "react-native";
+import Toast from "react-native-toast-message";
 
 const apiClient = axios.create({
   baseURL: API_CONFIG.BASE_URL,
@@ -23,6 +23,33 @@ const SESSION_EXPIRED_MESSAGE = "Session expired, login again";
 let hasShownSessionExpiredAlert = false;
 
 const isLoginRequest = (url?: string) => url === "/auth/login";
+const isAuthRequest = (url?: string) => !!url && url.startsWith("/auth/");
+
+const getErrorMessage = (
+  error: AxiosError<ErrorResponse>,
+  fallback = "Something went wrong. Please try again.",
+) => {
+  const responseData = error.response?.data as any;
+  const detail = responseData?.detail;
+
+  if (Array.isArray(detail)) {
+    return detail[0]?.msg || fallback;
+  }
+
+  if (typeof detail === "string") {
+    return detail;
+  }
+
+  return responseData?.message || error.message || fallback;
+};
+
+const showErrorToast = (message: string) => {
+  Toast.show({
+    type: "errorToast",
+    text1: "Error",
+    text2: message,
+  });
+};
 
 const requiresOtpVerification = (error: AxiosError<ErrorResponse>) => {
   const responseData = error.response?.data as any;
@@ -40,18 +67,19 @@ const requiresOtpVerification = (error: AxiosError<ErrorResponse>) => {
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     const token = await storage.getToken();
+    const skipAuth = (config as any).skipAuth === true;
 
     console.log("📤 API Request:", {
       url: `${config.baseURL}${config.url}`,
       method: config.method?.toUpperCase(),
       hasToken: !!token,
       data: config.data,
-      token
+      token,
     });
 
-    if (token) {
+    if (token && !skipAuth) {
       config.headers.Authorization = `Bearer ${token}`;
-    } else {
+    } else if (!token && !skipAuth) {
       console.warn("⚠️ No token available for request");
     }
 
@@ -70,8 +98,11 @@ apiClient.interceptors.response.use(
   },
   async (error: AxiosError<ErrorResponse>) => {
     const originalRequest = error.config as any;
+    const requestUrl = originalRequest?.url;
+    const suppressGlobalErrorToast =
+      originalRequest?.suppressGlobalErrorToast === true;
     const isAuthenticatedRequest =
-      error.response?.status === 401 && !isLoginRequest(originalRequest?.url);
+      error.response?.status === 401 && !isAuthRequest(requestUrl);
 
     if (error.response) {
       // Server responded with error
@@ -82,8 +113,13 @@ apiClient.interceptors.response.use(
         data: error.response.data,
         headers: error.response.headers,
       });
-      if (!requiresOtpVerification(error) && !isAuthenticatedRequest) {
-        Alert.alert((error.response.data as any).message);
+      if (
+        !suppressGlobalErrorToast &&
+        !isLoginRequest(requestUrl) &&
+        !requiresOtpVerification(error) &&
+        !isAuthenticatedRequest
+      ) {
+        showErrorToast(getErrorMessage(error));
       }
     } else if (error.request) {
       // Request made but no response
@@ -103,7 +139,7 @@ apiClient.interceptors.response.use(
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
-      !isLoginRequest(originalRequest.url)
+      !isAuthRequest(requestUrl)
     ) {
       originalRequest._retry = true;
 
@@ -144,7 +180,7 @@ apiClient.interceptors.response.use(
 
         if (!hasShownSessionExpiredAlert) {
           hasShownSessionExpiredAlert = true;
-          Alert.alert(SESSION_EXPIRED_MESSAGE);
+          showErrorToast(SESSION_EXPIRED_MESSAGE);
         }
 
         return Promise.reject(refreshError);

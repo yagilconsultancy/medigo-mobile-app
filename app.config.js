@@ -5,9 +5,6 @@ const require = createRequire(import.meta.url);
 
 const buildProfile = process.env.APP_ENV ?? "development";
 const isProductionBuild = buildProfile === "production";
-const apiBaseUrl = isProductionBuild
-  ? "https://prod-api.getmedigo.com/api/v1"
-  : "https://staging.getmedigo.com/api/v1";
 const stripePublishableKeyEnvName = isProductionBuild
   ? "STRIPE_LIVE_PUBLISHABLE_KEY"
   : "STRIPE_TEST_PUBLISHABLE_KEY";
@@ -23,7 +20,7 @@ export default ({ config }) => ({
   ...config,
   name: "Medigo",
   slug: "medigo",
-  version: "1.0.1",
+  version: "1.0.2",
   orientation: "portrait",
   icon: "./assets/med.png",
   userInterfaceStyle: "light",
@@ -43,12 +40,13 @@ export default ({ config }) => ({
         "This app uses your location to show your position on the map and calculate routes.",
       ITSAppUsesNonExemptEncryption: false,
     },
+    
   },
 
   android: {
     adaptiveIcon: {
-      foregroundImage: "./assets/med-splash.png",
-      backgroundColor: "#ffffff",
+      foregroundImage: "./assets/med.png",
+      backgroundColor: "#1A3B8E",
     },
 
     config: {
@@ -95,7 +93,7 @@ export default ({ config }) => ({
   ],
 
   extra: {
-    apiBaseUrl,
+    apiBaseUrl: "https://prod-api.getmedigo.com/api/v1",
     expoPublicGoogleKey: process.env.EXPO_PUBLIC_GOOGLE_KEY,
     stripePublishableKey,
     buildProfile,

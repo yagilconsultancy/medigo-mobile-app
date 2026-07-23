@@ -1,6 +1,6 @@
 import Constants from "expo-constants";
 
-const DEFAULT_API_BASE_URL = "https://staging.getmedigo.com/api/v1";
+const DEFAULT_API_BASE_URL = "https://prod-api.getmedigo.com/api/v1";
 const configuredApiBaseUrl = Constants.expoConfig?.extra?.apiBaseUrl;
 
 export const API_CONFIG = {

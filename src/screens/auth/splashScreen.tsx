@@ -23,7 +23,8 @@ import { useMapStore } from "../../store/mapStore";
 import { useRideStore } from "../../store/useRideStore";
 import { storage } from "../../utils/storage";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useUserStore } from "../../store/userStore";
+import { syncUserProfile } from "../../utils/syncUserProfile";
+import { getPostAuthRoute } from "../../utils/authRouting";
 
 const { width } = Dimensions.get("window");
 
@@ -38,57 +39,55 @@ type ScreenStep =
 export default function MediGoApp() {
   const [step, setStep] = useState<ScreenStep>("splash1");
   const { colors, theme } = useTheme();
-  const { user } = useUserStore();
   const setUserRegion = useMapStore((state) => state.setUserRegion);
   const setPickup = useRideStore((state) => state.setPickup);
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
-  const [targetUser, setTargetUser] = useState<any>(null);
+  const [targetRoute, setTargetRoute] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      // Set a maximum wait time of 5 seconds
-      const timeout = setTimeout(() => {
-        setAuthChecked(true);
-        setTargetUser(null);
-      }, 5000);
+    let cancelled = false;
 
+    const checkAuth = async () => {
       try {
-        const storedUser = await storage.getToken();
-        console.log(storedUser);
-        setTargetUser(storedUser);
+        const token = await storage.getToken();
+
+        if (!token) {
+          if (!cancelled) setTargetRoute(null);
+          return;
+        }
+
+        const profile = await syncUserProfile();
+
+        if (!cancelled) {
+          setTargetRoute(profile ? getPostAuthRoute(profile) : null);
+        }
       } catch (e) {
-        setTargetUser(null);
+        if (!cancelled) setTargetRoute(null);
       } finally {
-        clearTimeout(timeout);
-        setAuthChecked(true);
+        if (!cancelled) setAuthChecked(true);
       }
     };
+
     checkAuth();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
     if (step === "splash1") {
       setTimeout(() => setStep("splash2"), 1500);
-    } else if (step === "splash2" && authChecked && targetUser) {
-      // 4. Role-based Navigation
-      const role = user?.data.role?.toLowerCase();
-
-      if (role === "driver") {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: "DriverMainTabs" }],
-        });
-      } else {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: "RiderMainTabs" }],
-        });
-      }
-    } else if (step === "splash2" && authChecked && !targetUser) {
+    } else if (step === "splash2" && authChecked && targetRoute) {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: targetRoute }],
+      });
+    } else if (step === "splash2" && authChecked && !targetRoute) {
       setTimeout(() => setStep("onboarding1"), 1500);
     }
-  }, [step, authChecked, targetUser]);
+  }, [step, authChecked, navigation, targetRoute]);
 
   const handleLocationRequest = async () => {
     const location = await requestLocationPermission();

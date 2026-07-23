@@ -2,7 +2,6 @@ import { AxiosResponse } from "axios";
 import apiClient from "../client";
 import {
   UpdateProfilePayload,
-  UserProfileResponse,
 } from "../../types/auth.types";
 import {
   ConsentResponse,
@@ -22,6 +21,7 @@ import {
   UpdatePrivacyPayload,
   UpdateStatusPayload,
   UpdateVehiclePayload,
+  UserProfileResponse,
   VehicleResponse,
 } from "../../types/user.types";
 

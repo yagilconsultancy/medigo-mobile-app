@@ -31,6 +31,37 @@ export interface ConsentResponse {
   };
 }
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  phone: string;
+  first_name: string;
+  last_name: string;
+  date_of_birth: string;
+  gender: string;
+  avatar_url: string;
+  home_address: string;
+  medical_notes: string;
+  role: "rider" | "driver" | string;
+  business_id: string;
+  is_active: boolean;
+  is_guest: boolean;
+  consent_emergency_services: boolean;
+  consent_privacy_policy: boolean;
+  consent_terms_of_service: boolean;
+  consent_data_location: boolean;
+  consent_accepted_at: string;
+  onboarding_step: number;
+  onboarding_completed: boolean;
+}
+
+export interface UserProfileResponse {
+  success: boolean;
+  message: string | null;
+  data: UserProfile;
+  [key: string]: any;
+}
+
 export interface SavedLocation {
   id: string;
   label: string; // e.g., "Home", "General Hospital"

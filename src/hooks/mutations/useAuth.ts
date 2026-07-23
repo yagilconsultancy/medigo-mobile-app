@@ -3,11 +3,12 @@ import authService, {
   ChangePasswordPayload,
 } from "../../api/services/authService";
 import {
-  DriverRegisterRequest,
   RegisterDriverPayload,
   RegisterDriverResponse,
   RegisterPayload,
   ResendOtpParams,
+  VerifyDriverInvitePayload,
+  VerifyDriverInviteResponse,
   VerifyOTPPayload,
 } from "../../types/auth.types";
 import { Alert } from "react-native";
@@ -167,6 +168,22 @@ export const useRegisterDriver = () => {
         error?.response?.data?.detail?.[0]?.msg ||
         error?.response?.data?.message ||
         "Registration failed. Please check your invite token and try again.";
+    },
+  });
+};
+
+export const useVerifyDriverInvite = () => {
+  return useMutation<
+    VerifyDriverInviteResponse,
+    any,
+    VerifyDriverInvitePayload
+  >({
+    mutationFn: authService.verifyDriverInvite,
+    onSuccess: (data) => {
+      console.log("✅ Driver invite verified:", data);
+    },
+    onError: (error) => {
+      console.error("❌ Driver invite verification failed:", error);
     },
   });
 };

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   StyleSheet,
   View,
@@ -10,124 +10,251 @@ import {
   StatusBar,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Eye, EyeOff, X, Mail, Lock } from "lucide-react-native";
+import { Eye, EyeOff, Lock } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
-import OtpInputField from "../../components/inputs/otpInput";
 import useTheme from "../../hooks/useThemes";
 import { commonStyles } from "../../styles/commonStyles";
 import { FONT_SIZES } from "../../constants/sizes";
-import Phone from "../../../assets/icons/phone";
 import Input from "../../components/inputs/input";
 import Buttons from "../../components/buttons/buttons";
 import RightArrow from "../../../assets/icons/rightArrow";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import BackButton from "../../components/buttons/backButton";
+import SucccessCheckmark from "../../../assets/icons/successCheckmark";
 import {
+  useLogin,
   useRegisterDriver,
-  useRegisterMutation,
-  useResendOtp,
-  useVerifyOTPMutation,
+  useVerifyDriverInvite,
 } from "../../hooks/mutations/useAuth";
-import { RegisterPayload, UpdateProfilePayload } from "../../types/auth.types";
+import {
+  DriverAuthData,
+  VerifyDriverInviteResponse,
+} from "../../types/auth.types";
+import { syncUserProfile } from "../../utils/syncUserProfile";
+import { storage } from "../../utils/storage";
+import Toast from "react-native-toast-message";
 
-// --- Types ---
-type RiderStep = "initial" | "otp" | "password" | "payment" | "success";
+type DriverStep = "invite" | "password" | "success";
+
+const isJwt = (value?: string | null) => value?.split(".").length === 3;
+
+const getErrorMessage = (error: any, fallback: string) => {
+  const detail = error?.response?.data?.detail;
+
+  if (Array.isArray(detail)) {
+    return detail[0]?.msg || fallback;
+  }
+
+  if (typeof detail === "string") {
+    return detail;
+  }
+
+  return error?.response?.data?.message || error?.message || fallback;
+};
+
+const showErrorToast = (title: string, message: string) => {
+  Toast.show({
+    type: "errorToast",
+    text1: title,
+    text2: message,
+  });
+};
+
+const getResponseData = (response: any): DriverAuthData | string | null => {
+  if (!response) return null;
+  return response?.data ?? response;
+};
+
+const isExplicitFailure = (response: any) =>
+  typeof response === "object" && response?.success === false;
+
+const getActivationTokens = (response: any) => {
+  const data = getResponseData(response);
+  const accessToken =
+    (typeof data === "object" && data?.access_token) ||
+    (typeof data === "object" && data?.token) ||
+    response?.access_token ||
+    response?.token ||
+    (typeof data === "string" && isJwt(data) ? data : null) ||
+    (typeof response === "string" && isJwt(response) ? response : null);
+  const refreshToken =
+    (typeof data === "object" && data?.refresh_token) ||
+    response?.refresh_token ||
+    null;
+
+  return {
+    accessToken: typeof accessToken === "string" ? accessToken : null,
+    refreshToken: typeof refreshToken === "string" ? refreshToken : null,
+  };
+};
+
+const getInviteIdentity = (invite?: VerifyDriverInviteResponse | null) => {
+  const data = invite?.data;
+
+  if (!data || typeof data !== "object") return null;
+
+  if (data.email) return { email: data.email };
+  if (data.phone) return { phone: data.phone };
+  if (data.phone_number) return { phone: data.phone_number };
+
+  return null;
+};
 
 export default function DriverRegistrationFlow() {
-  const [step, setStep] = useState<RiderStep>("initial");
+  const [step, setStep] = useState<DriverStep>("invite");
   const [showPassword, setShowPassword] = useState(false);
-  const [signUpMethod, setsignUpMethod] = useState("phone");
+  const [inviteCode, setInviteCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [verifiedInvite, setVerifiedInvite] =
+    useState<VerifyDriverInviteResponse | null>(null);
+  const [registrationResponse, setRegistrationResponse] = useState<any>(null);
+
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const { colors, theme } = useTheme();
   const commonStyling = commonStyles(colors);
-  const { mutate, isPending } = useRegisterMutation();
-  const [countdown, setCountdown] = useState(60);
-  const [userId, setUserId] = useState<string>("");
-  const [otpCode, setOtpCode] = useState("");
-  const verifyMutation = useVerifyOTPMutation();
-  const { mutate: resendOTP, isPending: isPendingResend } = useResendOtp();
-  const [inviteToken, setinviteToken] = useState("");
-
-  const [formData, setFormData] = useState<RegisterPayload>({
-    identifier: "",
-    password: "",
-    role: "rider",
-  });
+  const { mutate: verifyInvite, isPending: verifyingInvite } =
+    useVerifyDriverInvite();
   const { mutate: register, isPending: registeringDriver } =
     useRegisterDriver();
+  const { mutate: login, isPending: loggingIn } = useLogin();
 
-  const handleRegister = () => {
-    if (!inviteToken || !formData.password) return;
+  const routeToDriverDashboard = async () => {
+    await syncUserProfile();
 
-    register(
-      { invite_token: inviteToken, password: formData.password },
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "DriverMainTabs" }],
+    });
+  };
+
+  const handleVerifyInvite = () => {
+    const trimmedInviteCode = inviteCode.trim();
+
+    if (!trimmedInviteCode) {
+      showErrorToast("Invite code required", "Enter your invitation code.");
+      return;
+    }
+
+    verifyInvite(
+      { invite_token: trimmedInviteCode },
       {
-        onSuccess: (authToken) => {
-          // e.g., Save token to secure store, update userStore, and route to onboarding/home
-          navigation.navigate("Login");
+        onSuccess: (response) => {
+          if (isExplicitFailure(response)) {
+            showErrorToast(
+              "Invite verification failed",
+              response.message ||
+                "Invalid or expired invitation token. Please check the code and try again.",
+            );
+            return;
+          }
+
+          setInviteCode(trimmedInviteCode);
+          setVerifiedInvite(response);
+          setStep("password");
+        },
+        onError: (error) => {
+          showErrorToast(
+            "Invite verification failed",
+            getErrorMessage(
+              error,
+              "Invalid or expired invitation token. Please check the code and try again.",
+            ),
+          );
         },
       },
     );
   };
 
-  const handleRegistration = () => {
-    const payload = {
-      email: formData.identifier,
-      password: formData.password,
-      role: "rider",
-    };
-
-    mutate(payload, {
-      onSuccess: (res) => {
-        console.log(res);
-        setUserId(res.data.user_id);
-        setStep("otp");
-      },
-    });
-    setStep("otp");
-  };
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (countdown > 0) {
-      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+  const handleRegister = () => {
+    if (!password || password.length < 8) {
+      showErrorToast("Invalid password", "Password must be at least 8 characters.");
+      return;
     }
-    return () => clearTimeout(timer);
-  }, [countdown]);
 
-  const handleResend = () => {
-    resendOTP(
-      { user_id: userId, purpose: "registration" },
+    if (password !== confirmPassword) {
+      showErrorToast("Password mismatch", "Both password fields must match.");
+      return;
+    }
+
+    register(
+      { invite_token: inviteCode, password },
       {
-        onSuccess: () => setCountdown(60),
+        onSuccess: (response) => {
+          if (isExplicitFailure(response)) {
+            showErrorToast(
+              "Registration failed",
+              (typeof response === "object" && response?.message) ||
+                "Registration failed. Please check your invite token and try again.",
+            );
+            return;
+          }
+
+          setRegistrationResponse(response);
+          setStep("success");
+        },
+        onError: (error) => {
+          showErrorToast(
+            "Registration failed",
+            getErrorMessage(
+              error,
+              "Registration failed. Please check your invite token and try again.",
+            ),
+          );
+        },
       },
     );
   };
 
-  const handleVerifyOTP = () => {
-    // console.log(otpCode, userId);
-    // verifyMutation.mutate(
-    //   {
-    //     user_id: userId,
-    //     code: otpCode,
-    //     purpose: "registration",
-    //   },
-    //   {
-    //     onSuccess: () => navigation.navigate("Login"),
-    //   },
-    // );
+  const handleContinueToDashboard = async () => {
+    const { accessToken, refreshToken } =
+      getActivationTokens(registrationResponse);
 
-    navigation.navigate("DriverMainTabs");
+    if (accessToken) {
+      await storage.setToken(accessToken);
+
+      if (refreshToken) {
+        await storage.setRefreshToken(refreshToken);
+      }
+
+      await routeToDriverDashboard();
+      return;
+    }
+
+    const identity = getInviteIdentity(verifiedInvite);
+
+    if (!identity) {
+      showErrorToast(
+        "Login failed",
+        "Account created, but login details were not returned. Please log in with your new password.",
+      );
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Login" }],
+      });
+      return;
+    }
+
+    login(
+      { ...identity, password },
+      {
+        onSuccess: routeToDriverDashboard,
+        onError: (error) => {
+          showErrorToast(
+            "Login failed",
+            getErrorMessage(
+              error,
+              "Account created, but automatic login failed. Please log in with your new password.",
+            ),
+          );
+        },
+      },
+    );
   };
 
-  const updateFields = (fields: Partial<RegisterPayload>) => {
-    setFormData((prev) => ({ ...prev, ...fields }));
-  };
-
-  // Reusable Step Header
   const StepHeader = ({ current, total, title, subTitle }: any) => (
     <View style={styles.header}>
-      <BackButton />
+      {step !== "success" ? <BackButton /> : null}
       <View style={styles.stepIndicator}>
         <Text style={styles.stepText}>
           Step {current} of {total}
@@ -177,138 +304,48 @@ export default function DriverRegistrationFlow() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-        {step === "initial" && (
+        {step === "invite" && (
           <View
-            style={{
-              flex: 1,
-              paddingHorizontal: 24,
-              flexDirection: "column",
-              justifyContent: "space-between",
-              paddingBottom: 30,
-              backgroundColor: colors.surfacePrimary,
-              paddingTop: 16,
-            }}
+            style={[
+              styles.screen,
+              {
+                backgroundColor: colors.surfacePrimary,
+              },
+            ]}
           >
             <View>
               <StepHeader
                 current={1}
                 total={3}
                 title="Verify Your Identity"
-                subTitle="Enter the invite token that was sent by our medical transportation team."
+                subTitle="Enter the activation code provided by your admin."
               />
 
               <Input
-                title="Invite token"
-                value={inviteToken}
-                onChangeText={(val) => {
-                  setinviteToken(val);
-                }}
-                keyboardType="email-address"
+                title="Activation code"
+                value={inviteCode}
+                onChangeText={setInviteCode}
+                keyboardType="default"
               />
-            </View>
-
-            <View>
-              <Buttons
-                title="Create password"
-                onPress={() => {
-                  setStep("password");
-                }}
-                loading={isPending}
-                rightIcon={!isPending && <RightArrow />}
-              />
-            </View>
-          </View>
-        )}
-
-        {step === "otp" && (
-          <View
-            style={{
-              flex: 1,
-              paddingHorizontal: 24,
-              flexDirection: "column",
-              justifyContent: "space-between",
-              paddingBottom: 30,
-              backgroundColor: colors.surfacePrimary,
-              paddingTop: 16,
-            }}
-          >
-            <View>
-              <StepHeader
-                current={3}
-                total={3}
-                title="Enter OTP Code"
-                subTitle={`We've sent a 6-digit code to ${formData.identifier}`}
-              />
-              <View style={styles.otpContainer}>
-                <OtpInputField
-                  onFilled={(code) => {
-                    setOtpCode(code);
-                  }}
-                />
-              </View>
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                }}
-              >
-                <Text
-                  style={[
-                    commonStyling.subtitle,
-                    styles.resendText,
-                    {
-                      fontSize: FONT_SIZES.BODY,
-                    },
-                  ]}
-                >
-                  Code expires in{" "}
-                  <Text
-                    style={{
-                      color: colors.primaryColor,
-                    }}
-                  >
-                    {countdown}s
-                  </Text>
-                </Text>
-
-                <Text
-                  style={[
-                    commonStyling.subtitle,
-                    {
-                      color: colors.primaryColor,
-                      fontSize: FONT_SIZES.BODY,
-                    },
-                  ]}
-                  onPress={handleResend}
-                >
-                  {isPendingResend ? "Resending" : "Resend"}
-                </Text>
-              </View>
             </View>
 
             <Buttons
-              title="Verify and Continue"
-              onPress={() => {
-                console.log(otpCode);
-                handleVerifyOTP();
-              }}
-              rightIcon={<RightArrow />}
-              loading={verifyMutation.isPending}
+              title="Verify invite code"
+              onPress={handleVerifyInvite}
+              loading={verifyingInvite}
+              rightIcon={!verifyingInvite && <RightArrow />}
             />
           </View>
         )}
 
         {step === "password" && (
           <View
-            style={{
-              flex: 1,
-              paddingHorizontal: 24,
-              flexDirection: "column",
-              justifyContent: "space-between",
-              paddingBottom: 30,
-              backgroundColor: colors.surfacePrimary,
-              paddingTop: 16,
-            }}
+            style={[
+              styles.screen,
+              {
+                backgroundColor: colors.surfacePrimary,
+              },
+            ]}
           >
             <View>
               <StepHeader
@@ -333,7 +370,8 @@ export default function DriverRegistrationFlow() {
                     secureTextEntry={!showPassword}
                     style={[styles.inputFlex, commonStyling.subtitle]}
                     placeholder="Enter password"
-                    onChangeText={(val) => updateFields({ password: val })}
+                    value={password}
+                    onChangeText={setPassword}
                   />
                   <TouchableOpacity
                     onPress={() => setShowPassword(!showPassword)}
@@ -363,6 +401,8 @@ export default function DriverRegistrationFlow() {
                     secureTextEntry={!showPassword}
                     style={[styles.inputFlex, commonStyling.subtitle]}
                     placeholder="Re-enter password"
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
                   />
                   <TouchableOpacity
                     onPress={() => setShowPassword(!showPassword)}
@@ -421,7 +461,60 @@ export default function DriverRegistrationFlow() {
               title="Create Account"
               onPress={handleRegister}
               loading={registeringDriver}
-              rightIcon={<RightArrow />}
+              rightIcon={!registeringDriver && <RightArrow />}
+            />
+          </View>
+        )}
+
+        {step === "success" && (
+          <View
+            style={[
+              styles.screen,
+              styles.successScreen,
+              {
+                backgroundColor: colors.surfacePrimary,
+              },
+            ]}
+          >
+            <View style={styles.successContent}>
+              <View style={styles.successIcon}>
+                <SucccessCheckmark />
+              </View>
+
+              <Text
+                style={[
+                  commonStyling.title,
+                  styles.mainTitle,
+                  styles.successTitle,
+                  {
+                    marginTop: 16,
+                    fontFamily: "Bold",
+                    fontSize: 30,
+                  },
+                ]}
+              >
+                Account Created
+              </Text>
+              <Text
+                style={[
+                  commonStyling.subtitle,
+                  styles.subTitle,
+                  styles.successSubtitle,
+                  {
+                    fontSize: 16,
+                    width: "90%",
+                  },
+                ]}
+              >
+                Your driver account has been created successfully.
+              </Text>
+            </View>
+
+            <Buttons
+              title="Continue to dashboard"
+              onPress={handleContinueToDashboard}
+              loading={loggingIn}
+              rightIcon={!loggingIn && <RightArrow />}
             />
           </View>
         )}
@@ -430,12 +523,17 @@ export default function DriverRegistrationFlow() {
   );
 }
 
-// --- Styles ---
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 24 },
+  screen: {
+    flex: 1,
+    paddingHorizontal: 24,
+    flexDirection: "column",
+    justifyContent: "space-between",
+    paddingBottom: 30,
+    paddingTop: 16,
+  },
   header: { marginBottom: 12 },
-  backBtn: { marginBottom: 20 },
   stepIndicator: {
     backgroundColor: "#EFF6FF",
     paddingHorizontal: 12,
@@ -449,19 +547,16 @@ const styles = StyleSheet.create({
   mainTitle: {
     marginBottom: 8,
   },
+  textTitle: {
+     lineHeight: 22,
+    marginBottom: 20,
+  },
   subTitle: {
     lineHeight: 22,
     marginBottom: 20,
   },
   inputContainer: { marginBottom: 20 },
   label: { fontSize: 14, fontWeight: "600", color: "#1A1C1E", marginBottom: 8 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#E5E9EF",
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-  },
   passwordWrapper: {
     flexDirection: "row",
     alignItems: "center",
@@ -471,32 +566,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   inputFlex: { flex: 1, paddingVertical: 16, fontSize: 16 },
-  otpContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 24,
-  },
-  otpInput: {
-    width: 45,
-    height: 55,
-    borderWidth: 1,
-    borderColor: "#E5E9EF",
-    borderRadius: 10,
-    textAlign: "center",
-    fontSize: 20,
-    fontWeight: "700",
-  },
-
-  btn: { padding: 18, borderRadius: 50, alignItems: "center", marginTop: 10 },
-  btnActive: { backgroundColor: "#3B82F6" },
-  btnInactive: { backgroundColor: "#BFDBFE" },
-  btnText: { color: "#FFF", fontWeight: "700", fontSize: 16 },
-  legalText: {
-    marginTop: 16,
-  },
-  row: { flexDirection: "row", marginBottom: 10 },
-
-  resendText: { textAlign: "center" },
   privacyBanner: {
     flexDirection: "row",
     padding: 16,
@@ -508,6 +577,28 @@ const styles = StyleSheet.create({
   bannerTextContainer: { flex: 1, marginLeft: 12 },
   bannerTitle: { color: "#1E3A8A" },
   bannerSub: { color: "#3B82F6", marginTop: 4, lineHeight: 18 },
-  footerText: { textAlign: "center" },
-  linkText: { fontWeight: "700" },
+  successScreen: {
+    justifyContent: "space-between",
+  },
+  successContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  successIcon: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    backgroundColor: "#DFF7E2",
+    marginBottom: 16,
+  },
+  successTitle: {
+    textAlign: "center",
+  },
+  successSubtitle: {
+    textAlign: "center",
+  },
 });
