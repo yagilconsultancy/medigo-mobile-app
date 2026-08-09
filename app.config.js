@@ -1,7 +1,4 @@
-import "dotenv/config";
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
+require("dotenv/config");
 
 const buildProfile = process.env.APP_ENV ?? "development";
 const isProductionBuild = buildProfile === "production";
@@ -16,7 +13,7 @@ if (!stripePublishableKey) {
   );
 }
 
-export default ({ config }) => ({
+module.exports = ({ config }) => ({
   ...config,
   name: "Medigo",
   slug: "medigo",
