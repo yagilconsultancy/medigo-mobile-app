@@ -1,20 +1,20 @@
 import React from "react";
-import { Text, View, StyleSheet, TouchableOpacity } from "react-native";
-import BackArrow from "../../../assets/icons/backArrow";
-import useTheme from "../../hooks/useThemes";
+import { StyleSheet, TouchableOpacity } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { FONT_SIZES } from "../../constants/sizes";
 import { ChevronLeft } from "lucide-react-native";
 
-const BackButton: React.FC = () => {
+type BackButtonProps = {
+  onPress?: () => void;
+};
+
+const BackButton: React.FC<BackButtonProps> = ({ onPress }) => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
-  const { colors } = useTheme();
 
   return (
     <TouchableOpacity
       style={styles.backButton}
-      onPress={() => navigation.goBack()}
+      onPress={onPress ?? (() => navigation.goBack())}
       hitSlop={30}
     >
       <ChevronLeft color="#1A1C1E" size={24} />

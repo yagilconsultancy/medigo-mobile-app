@@ -12,13 +12,12 @@ import {
   Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Eye, EyeOff, X, Mail, Lock } from "lucide-react-native";
+import { Eye, EyeOff, Mail, Lock } from "lucide-react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import OtpInputField from "../../components/inputs/otpInput";
 import useTheme from "../../hooks/useThemes";
 import { commonStyles } from "../../styles/commonStyles";
 import { FONT_SIZES } from "../../constants/sizes";
-import Phone from "../../../assets/icons/phone";
 import Input from "../../components/inputs/input";
 import Buttons from "../../components/buttons/buttons";
 import RightArrow from "../../../assets/icons/rightArrow";
@@ -29,7 +28,7 @@ import {
   useResendOtp,
   useVerifyOTPMutation,
 } from "../../hooks/mutations/useAuth";
-import { RegisterPayload, UpdateProfilePayload } from "../../types/auth.types";
+import { RegisterPayload } from "../../types/auth.types";
 import Toast from "react-native-toast-message";
 
 // --- Types ---
@@ -46,7 +45,6 @@ type RiderRegistrationFormData = RegisterPayload & {
 export default function RiderRegistrationFlow() {
   const [step, setStep] = useState<RiderStep>("initial");
   const [showPassword, setShowPassword] = useState(false);
-  const [signUpMethod, setsignUpMethod] = useState("phone");
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const { colors, theme } = useTheme();
   const commonStyling = commonStyles(colors);
@@ -77,9 +75,6 @@ export default function RiderRegistrationFlow() {
           ...prev,
           identifier: routeParams.identifier ?? "",
         }));
-        setsignUpMethod(
-          routeParams.identifier.includes("@") ? "email" : "phone",
-        );
       }
 
       if (!hasRequestedResumeOtp.current) {
@@ -100,19 +95,22 @@ export default function RiderRegistrationFlow() {
   ]);
 
   const handleRegistration = () => {
-    // Simple logic to determine if input is email or phone
-    const isEmail = formData.identifier.includes("@");
-    const payload: RegisterPayload = isEmail
-      ? {
-          email: formData.identifier,
-          password: formData.password,
-          role: "rider",
-        }
-      : {
-          phone: formData.identifier,
-          password: formData.password,
-          role: "rider",
-        };
+    const email = formData.identifier.trim();
+
+    if (!email || !email.includes("@")) {
+      Toast.show({
+        type: "errorToast",
+        text1: "Invalid email",
+        text2: "Enter a valid email address.",
+      });
+      return;
+    }
+
+    const payload: RegisterPayload = {
+      email,
+      password: formData.password,
+      role: "rider",
+    };
 
     mutate(payload, {
       onSuccess: (res) => {
@@ -259,112 +257,29 @@ export default function RiderRegistrationFlow() {
                   appointments.
                 </Text>
 
-                <TouchableOpacity
+                <View
                   style={{
                     flexDirection: "row",
                     borderWidth: 1,
                     padding: 16,
                     columnGap: 12,
                     borderRadius: 16,
-                    borderColor:
-                      signUpMethod === "phone"
-                        ? colors.primaryColor
-                        : colors.stroke,
-                    backgroundColor:
-                      signUpMethod === "phone"
-                        ? colors.highlightBlue50
-                        : colors.surfacePrimary,
-                  }}
-                  onPress={() => {
-                    setsignUpMethod("phone");
-                  }}
-                >
-                  <View
-                    style={{
-                      height: 40,
-                      width: 40,
-                      backgroundColor:
-                        signUpMethod === "phone"
-                          ? colors.primaryColor
-                          : colors.lightGray,
-                      borderRadius: 50,
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Phone
-                      color={
-                        signUpMethod === "phone" ? "#ffffff" : colors.titleText
-                      }
-                    />
-                  </View>
-                  <View>
-                    <Text
-                      style={[
-                        commonStyling.subtitle,
-                        {
-                          color: colors.titleText,
-                          fontFamily: "Medium",
-                          marginBottom: 4,
-                        },
-                      ]}
-                    >
-                      Phone Number
-                    </Text>
-                    <Text
-                      style={[
-                        commonStyling.subtitle,
-                        {
-                          fontSize: FONT_SIZES.BODY,
-                          fontFamily: "Medium",
-                        },
-                      ]}
-                    >
-                      We will send you a verification code
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={{
-                    flexDirection: "row",
-                    borderWidth: 1,
-                    padding: 16,
-                    columnGap: 12,
-                    borderRadius: 16,
-                    borderColor:
-                      signUpMethod === "email"
-                        ? colors.primaryColor
-                        : colors.stroke,
-                    marginTop: 16,
+                    borderColor: colors.primaryColor,
                     marginBottom: 24,
-                    backgroundColor:
-                      signUpMethod === "email"
-                        ? colors.highlightBlue50
-                        : colors.surfacePrimary,
-                  }}
-                  onPress={() => {
-                    setsignUpMethod("email");
+                    backgroundColor: colors.highlightBlue50,
                   }}
                 >
                   <View
                     style={{
                       height: 40,
                       width: 40,
-                      backgroundColor:
-                        signUpMethod === "email"
-                          ? colors.primaryColor
-                          : colors.lightGray,
+                      backgroundColor: colors.primaryColor,
                       borderRadius: 50,
                       justifyContent: "center",
                       alignItems: "center",
                     }}
                   >
-                    <Mail
-                      color={
-                        signUpMethod === "email" ? "#ffffff" : colors.titleText
-                      }
-                    />
+                    <Mail color="#ffffff" />
                   </View>
                   <View>
                     <Text
@@ -388,30 +303,18 @@ export default function RiderRegistrationFlow() {
                         },
                       ]}
                     >
-                      Sign up with your email
+                      We will send you a verification code
                     </Text>
                   </View>
-                </TouchableOpacity>
+                </View>
 
-                {signUpMethod === "phone" && (
-                  <Input
-                    title="Phone Number"
-                    placeholder="(555) 000-0000"
-                    value={formData.identifier}
-                    onChangeText={(val) => updateFields({ identifier: val })}
-                    keyboardType="phone-pad"
-                  />
-                )}
-
-                {signUpMethod === "email" && (
-                  <Input
-                    title="Email Address"
-                    placeholder="you@example.com"
-                    value={formData.identifier}
-                    onChangeText={(val) => updateFields({ identifier: val })}
-                    keyboardType="email-address"
-                  />
-                )}
+                <Input
+                  title="Email Address"
+                  placeholder="you@example.com"
+                  value={formData.identifier}
+                  onChangeText={(val) => updateFields({ identifier: val })}
+                  keyboardType="email-address"
+                />
                 <Text
                   style={[
                     commonStyling.subtitle,

@@ -53,7 +53,7 @@ const getLoginErrorMessage = (error: any) => {
 
   return (
     error?.response?.data?.message ||
-    "Invalid email, phone number, or password."
+    "Invalid email or password."
   );
 };
 
@@ -83,12 +83,25 @@ function Login() {
   const { mutate: login, isPending } = useLogin();
   const { refetch: fetchProfile } = useUserProfile({ enabled: false });
 
-  const handleLogin = () => {
-    const isEmail = formData.identifier.includes("@");
+  const handleBackToSplash = () => {
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "Splash" }],
+    });
+  };
 
-    const payload = isEmail
-      ? { email: formData.identifier, password: formData.password }
-      : { phone: formData.identifier, password: formData.password };
+  const handleLogin = () => {
+    const email = formData.identifier.trim();
+
+    if (!email || !email.includes("@")) {
+      showLoginErrorToast("Enter a valid email address.");
+      return;
+    }
+
+    const payload = {
+      email,
+      password: formData.password,
+    };
 
     login(payload, {
       onSuccess: async () => {
@@ -148,7 +161,7 @@ function Login() {
       >
         <View>
           <View style={styles.header}>
-            <BackButton />
+            <BackButton onPress={handleBackToSplash} />
 
             <Text
               style={[
@@ -171,10 +184,10 @@ function Login() {
           <View>
             <View style={styles.inputContainer}>
               <Input
-                title="Phone number / Email address"
-                placeholder="(555) 000-0000"
+                title="Email address"
+                placeholder="you@example.com"
                 value={formData.identifier}
-                
+                keyboardType="email-address"
                 onChangeText={(val) => updateFields({ identifier: val })}
               />
             </View>

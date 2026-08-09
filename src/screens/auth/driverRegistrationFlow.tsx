@@ -22,21 +22,12 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import BackButton from "../../components/buttons/backButton";
 import SucccessCheckmark from "../../../assets/icons/successCheckmark";
 import {
-  useLogin,
   useRegisterDriver,
   useVerifyDriverInvite,
 } from "../../hooks/mutations/useAuth";
-import {
-  DriverAuthData,
-  VerifyDriverInviteResponse,
-} from "../../types/auth.types";
-import { syncUserProfile } from "../../utils/syncUserProfile";
-import { storage } from "../../utils/storage";
 import Toast from "react-native-toast-message";
 
 type DriverStep = "invite" | "password" | "success";
-
-const isJwt = (value?: string | null) => value?.split(".").length === 3;
 
 const getErrorMessage = (error: any, fallback: string) => {
   const detail = error?.response?.data?.detail;
@@ -60,45 +51,8 @@ const showErrorToast = (title: string, message: string) => {
   });
 };
 
-const getResponseData = (response: any): DriverAuthData | string | null => {
-  if (!response) return null;
-  return response?.data ?? response;
-};
-
 const isExplicitFailure = (response: any) =>
   typeof response === "object" && response?.success === false;
-
-const getActivationTokens = (response: any) => {
-  const data = getResponseData(response);
-  const accessToken =
-    (typeof data === "object" && data?.access_token) ||
-    (typeof data === "object" && data?.token) ||
-    response?.access_token ||
-    response?.token ||
-    (typeof data === "string" && isJwt(data) ? data : null) ||
-    (typeof response === "string" && isJwt(response) ? response : null);
-  const refreshToken =
-    (typeof data === "object" && data?.refresh_token) ||
-    response?.refresh_token ||
-    null;
-
-  return {
-    accessToken: typeof accessToken === "string" ? accessToken : null,
-    refreshToken: typeof refreshToken === "string" ? refreshToken : null,
-  };
-};
-
-const getInviteIdentity = (invite?: VerifyDriverInviteResponse | null) => {
-  const data = invite?.data;
-
-  if (!data || typeof data !== "object") return null;
-
-  if (data.email) return { email: data.email };
-  if (data.phone) return { phone: data.phone };
-  if (data.phone_number) return { phone: data.phone_number };
-
-  return null;
-};
 
 export default function DriverRegistrationFlow() {
   const [step, setStep] = useState<DriverStep>("invite");
@@ -106,10 +60,6 @@ export default function DriverRegistrationFlow() {
   const [inviteCode, setInviteCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [verifiedInvite, setVerifiedInvite] =
-    useState<VerifyDriverInviteResponse | null>(null);
-  const [registrationResponse, setRegistrationResponse] = useState<any>(null);
-
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const { colors, theme } = useTheme();
   const commonStyling = commonStyles(colors);
@@ -117,14 +67,11 @@ export default function DriverRegistrationFlow() {
     useVerifyDriverInvite();
   const { mutate: register, isPending: registeringDriver } =
     useRegisterDriver();
-  const { mutate: login, isPending: loggingIn } = useLogin();
 
-  const routeToDriverDashboard = async () => {
-    await syncUserProfile();
-
+  const handleContinueToLogin = () => {
     navigation.reset({
       index: 0,
-      routes: [{ name: "DriverMainTabs" }],
+      routes: [{ name: "Login" }],
     });
   };
 
@@ -150,7 +97,6 @@ export default function DriverRegistrationFlow() {
           }
 
           setInviteCode(trimmedInviteCode);
-          setVerifiedInvite(response);
           setStep("password");
         },
         onError: (error) => {
@@ -190,7 +136,6 @@ export default function DriverRegistrationFlow() {
             return;
           }
 
-          setRegistrationResponse(response);
           setStep("success");
         },
         onError: (error) => {
@@ -199,52 +144,6 @@ export default function DriverRegistrationFlow() {
             getErrorMessage(
               error,
               "Registration failed. Please check your invite token and try again.",
-            ),
-          );
-        },
-      },
-    );
-  };
-
-  const handleContinueToDashboard = async () => {
-    const { accessToken, refreshToken } =
-      getActivationTokens(registrationResponse);
-
-    if (accessToken) {
-      await storage.setToken(accessToken);
-
-      if (refreshToken) {
-        await storage.setRefreshToken(refreshToken);
-      }
-
-      await routeToDriverDashboard();
-      return;
-    }
-
-    const identity = getInviteIdentity(verifiedInvite);
-
-    if (!identity) {
-      showErrorToast(
-        "Login failed",
-        "Account created, but login details were not returned. Please log in with your new password.",
-      );
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "Login" }],
-      });
-      return;
-    }
-
-    login(
-      { ...identity, password },
-      {
-        onSuccess: routeToDriverDashboard,
-        onError: (error) => {
-          showErrorToast(
-            "Login failed",
-            getErrorMessage(
-              error,
-              "Account created, but automatic login failed. Please log in with your new password.",
             ),
           );
         },
@@ -511,10 +410,9 @@ export default function DriverRegistrationFlow() {
             </View>
 
             <Buttons
-              title="Continue to dashboard"
-              onPress={handleContinueToDashboard}
-              loading={loggingIn}
-              rightIcon={!loggingIn && <RightArrow />}
+              title="Continue"
+              onPress={handleContinueToLogin}
+              rightIcon={<RightArrow />}
             />
           </View>
         )}

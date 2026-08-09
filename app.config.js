@@ -17,7 +17,7 @@ module.exports = ({ config }) => ({
   ...config,
   name: "Medigo",
   slug: "medigo",
-  version: "1.0.2",
+  version: "1.0.3",
   orientation: "portrait",
   icon: "./assets/med.png",
   userInterfaceStyle: "light",
