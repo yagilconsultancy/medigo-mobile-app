@@ -299,7 +299,7 @@ const EditProfileScreen = () => {
           <View style={styles.bannerTextWrapper}>
             <Text style={styles.bannerTitle}>Privacy Protected</Text>
             <Text style={styles.bannerSub}>
-              Your information is encrypted and HIPAA compliant. Only shared
+              Your information is encrypted and PHIPA compliant. Only shared
               with your assigned driver for safety.
             </Text>
           </View>
