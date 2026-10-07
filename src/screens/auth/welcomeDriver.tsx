@@ -149,7 +149,7 @@ const WelcomeDriverScreen = () => {
                   },
                 ]}
               >
-                HIPAA compliant healthcare transportation
+                PHIPA compliant healthcare transportation
               </Text>
             </View>
           </View>

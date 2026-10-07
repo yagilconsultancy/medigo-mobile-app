@@ -342,7 +342,7 @@ export default function RiderRegistrationFlow() {
                   >
                     Privacy Policy
                   </Text>
-                  . Your health information is protected under HIPAA.
+                  . Your health information is protected under PHIPA.
                 </Text>
               </View>
 
