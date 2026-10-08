@@ -24,6 +24,24 @@ import {
   ResetPasswordResponse,
 } from "../../types/user.types";
 
+export type DriverActivationStep = "not_activated" | "set_password" | "login";
+
+export interface DriverActivationCheckResponse {
+  success: boolean;
+  message?: string | null;
+  data?: {
+    next_step: DriverActivationStep;
+    message?: string | null;
+  } | null;
+}
+
+// These calls happen before the driver has an account session, so they skip
+// auth and handle their own error messages on the screen.
+const PRE_LOGIN_REQUEST = {
+  skipAuth: true,
+  suppressGlobalErrorToast: true,
+} as any;
+
 // Interface for type safety
 export interface ChangePasswordPayload {
   current_password: string;
@@ -100,6 +118,39 @@ const authService = {
       skipAuth: true,
       suppressGlobalErrorToast: true,
     } as any);
+    return response.data;
+  },
+
+  checkDriverActivation: async (
+    email: string,
+  ): Promise<DriverActivationCheckResponse> => {
+    const response = await apiClient.post(
+      AUTH_ENDPOINTS.DRIVER_ACTIVATION_CHECK,
+      { email },
+      PRE_LOGIN_REQUEST,
+    );
+    return response.data;
+  },
+
+  requestDriverActivationCode: async (email: string) => {
+    const response = await apiClient.post(
+      AUTH_ENDPOINTS.DRIVER_ACTIVATION_REQUEST_CODE,
+      { email },
+      PRE_LOGIN_REQUEST,
+    );
+    return response.data;
+  },
+
+  completeDriverActivation: async (payload: {
+    email: string;
+    otp: string;
+    password: string;
+  }) => {
+    const response = await apiClient.post(
+      AUTH_ENDPOINTS.DRIVER_ACTIVATION_COMPLETE,
+      payload,
+      PRE_LOGIN_REQUEST,
+    );
     return response.data;
   },
 
