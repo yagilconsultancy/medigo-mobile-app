@@ -29,7 +29,7 @@ const ContactSupport = () => {
   const commonStyling = commonStyles(colors);
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const supportPhone = "1-416-521-3116";
-  const supportEmail = "support@getmedigo.com";
+  const supportEmail = "admin@getmedigo.com";
 
   const openSupportPhone = async () => {
     const phoneUrl = `tel:${supportPhone}`;
