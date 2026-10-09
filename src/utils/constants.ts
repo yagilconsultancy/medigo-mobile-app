@@ -20,8 +20,6 @@ export const WEB_CONFIG = {
   PORTFOLIO_BASE_URL: "https://medigo-portfolio.vercel.app",
 } as const;
 
-export const DELETE_ACCOUNT_URL = "https://yagildigitalstudios.com/medigo-delete-account";
-
 export const RIDE_CONFIG = {
   DEFAULT_BUSINESS_ID:
     process.env.EXPO_PUBLIC_DEFAULT_BUSINESS_ID ??

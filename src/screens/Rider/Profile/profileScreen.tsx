@@ -9,7 +9,6 @@ import {
   Image,
   Switch,
   Dimensions,
-  Linking,
 } from "react-native";
 import {
   ChevronRight,
@@ -34,7 +33,7 @@ import { useUserStore } from "../../../store/userStore";
 import ModalComponent from "../../../components/modals/modal";
 import Buttons from "../../../components/buttons/buttons";
 import { ProfileSkeleton } from "../../../components/skelentonAnimation/profileSkelenton";
-import { DELETE_ACCOUNT_URL } from "../../../utils/constants";
+import DeleteAccountModal from "../../../components/modals/deleteAccountModal";
 import Toast from "react-native-toast-message";
 import Constants from "expo-constants";
 
@@ -48,6 +47,7 @@ const ProfileScreen = () => {
   const { data, isLoading } = useUserProfile();
   const logout = useUserStore((state) => state.logout);
   const [showLogoutModal, setshowLogoutModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   if (isLoading) {
     return <ProfileSkeleton />;
@@ -370,17 +370,7 @@ const ProfileScreen = () => {
           {/* Delete Account Button */}
         <TouchableOpacity
           style={styles.deleteAccountBtn}
-          onPress={async () => {
-             try {
-                  await Linking.openURL(DELETE_ACCOUNT_URL);
-                } catch (error) {
-                  // show toast error
-                   Toast.show({
-                    text1: "Error opening URL",
-                    type: "error",
-                  });
-                }
-          }}
+          onPress={() => setShowDeleteModal(true)}
         >
           <Trash2 size={20} color="#EF4444" />
           <Text style={styles.deleteAccountText}>Delete Account</Text>
@@ -448,6 +438,11 @@ const ProfileScreen = () => {
           </View>
         </View>
       </ModalComponent>
+
+      <DeleteAccountModal
+        visible={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+      />
     </SafeAreaView>
   );
 };
