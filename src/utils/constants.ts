@@ -1,7 +1,12 @@
 import Constants from "expo-constants";
 
 const DEFAULT_API_BASE_URL = "https://prod-api.getmedigo.com/api/v1";
-const configuredApiBaseUrl = Constants.expoConfig?.extra?.apiBaseUrl;
+// Local/staging testing can point the app at another backend with
+// EXPO_PUBLIC_API_BASE_URL in .env. When it is not set, the app uses the
+// address from app.config.js (production), exactly as before.
+const configuredApiBaseUrl =
+  process.env.EXPO_PUBLIC_API_BASE_URL ??
+  Constants.expoConfig?.extra?.apiBaseUrl;
 
 export const API_CONFIG = {
   BASE_URL:

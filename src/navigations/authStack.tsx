@@ -13,6 +13,7 @@ import TermsOfServiceScreen from "../screens/auth/termsOfService";
 import LocationConsentScreen from "../screens/auth/dataAndLocationConsent";
 import WelcomeDriverScreen from "../screens/auth/welcomeDriver";
 import DriverRegistrationFlow from "../screens/auth/driverRegistrationFlow";
+import DriverActivation from "../screens/auth/driverActivation";
 
 const Stack = createNativeStackNavigator();
 
@@ -58,6 +59,7 @@ const AuthStack: React.FC = () => {
         name="DriverRegistrationFlow"
         component={DriverRegistrationFlow}
       />
+      <Stack.Screen name="DriverActivation" component={DriverActivation} />
     </Stack.Navigator>
   );
 };

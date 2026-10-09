@@ -16,7 +16,8 @@
       "channel": "preview",
       "distribution": "internal",
       "env": {
-        "APP_ENV": "staging"
+        "APP_ENV": "staging",
+        "EXPO_PUBLIC_API_BASE_URL": "https://staging.getmedigo.com/api/v1"
       },
       "ios": {
         "simulator": false

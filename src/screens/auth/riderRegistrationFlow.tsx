@@ -57,6 +57,9 @@ export default function RiderRegistrationFlow() {
   const route = useRoute();
   const routeParams = route.params as RiderRegistrationRouteParams | undefined;
   const hasRequestedResumeOtp = useRef(false);
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<RiderRegistrationFormData>({
     identifier: "",
@@ -94,8 +97,37 @@ export default function RiderRegistrationFlow() {
     routeParams?.userId,
   ]);
 
+  const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  // Step 1: both email boxes must match before the rider can continue.
+  const handleEmailContinue = () => {
+    const email = formData.identifier.trim().toLowerCase();
+    const confirm = confirmEmail.trim().toLowerCase();
+
+    if (!EMAIL_PATTERN.test(email)) {
+      setEmailError("Enter a valid email address.");
+      return;
+    }
+    if (email !== confirm) {
+      setEmailError("The two email addresses don't match.");
+      return;
+    }
+
+    setEmailError(null);
+    setStep("password");
+  };
+
   const handleRegistration = () => {
     const email = formData.identifier.trim();
+
+    if (formData.password !== confirmPassword) {
+      Toast.show({
+        type: "errorToast",
+        text1: "Passwords don't match",
+        text2: "Re-enter the same password in both boxes.",
+      });
+      return;
+    }
 
     if (!email || !email.includes("@")) {
       Toast.show({
@@ -312,8 +344,22 @@ export default function RiderRegistrationFlow() {
                   title="Email Address"
                   placeholder="you@example.com"
                   value={formData.identifier}
-                  onChangeText={(val) => updateFields({ identifier: val })}
+                  onChangeText={(val) => {
+                    updateFields({ identifier: val });
+                    setEmailError(null);
+                  }}
                   keyboardType="email-address"
+                />
+                <Input
+                  title="Confirm Email Address"
+                  placeholder="Re-enter your email"
+                  value={confirmEmail}
+                  onChangeText={(val) => {
+                    setConfirmEmail(val);
+                    setEmailError(null);
+                  }}
+                  keyboardType="email-address"
+                  error={emailError}
                 />
                 <Text
                   style={[
@@ -349,9 +395,7 @@ export default function RiderRegistrationFlow() {
               <View>
                 <Buttons
                   title="Continue"
-                  onPress={() => {
-                    setStep("password");
-                  }}
+                  onPress={handleEmailContinue}
                   loading={isPending}
                   rightIcon={!isPending && <RightArrow />}
                 />
@@ -535,6 +579,8 @@ export default function RiderRegistrationFlow() {
                     secureTextEntry={!showPassword}
                     style={[styles.inputFlex, commonStyling.subtitle]}
                     placeholder="Re-enter password"
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
                   />
                   <TouchableOpacity
                     onPress={() => setShowPassword(!showPassword)}
