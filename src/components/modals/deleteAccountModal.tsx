@@ -67,10 +67,9 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
   return (
     <ModalComponent visible={visible} onClose={handleClose} title="Delete account">
       <Text style={[commonStyling.subtitle, { marginTop: 16, marginBottom: 12 }]}>
-        Your account will be disabled right away and you will be signed out.
-        Your information is kept securely for up to 5 years for legal and
-        safety records, and is then permanently deleted. You will not be able
-        to sign in again with this account.
+        Your account will be disabled and you will be signed out. Some records
+        may be kept for legal and safety purposes, as described in our Privacy
+        Policy.
       </Text>
 
       <Input
