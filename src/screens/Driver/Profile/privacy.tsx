@@ -7,7 +7,6 @@ import {
   ScrollView,
   StatusBar,
   Switch,
-  Linking,
 } from "react-native";
 import {
   Lock,
@@ -31,7 +30,7 @@ import { useUpdatePrivacy } from "../../../hooks/mutations/useUser";
 import { UpdatePrivacyPayload } from "../../../types/user.types";
 import { useDriverSettings } from "../../../hooks/queries/useDriverSettings";
 import { NotificationsSettingsSkeleton } from "../../../components/skelentonAnimation/notificationSettingsSkelenton";
-import { DELETE_ACCOUNT_URL } from "../../../utils/constants";
+import DeleteAccountModal from "../../../components/modals/deleteAccountModal";
 import Toast from "react-native-toast-message";
 
 // ── Reusable row for API-backed toggles ──────────────────────────────────────
@@ -156,17 +155,10 @@ const PrivacySecurityScreen = () => {
     phoneSharing: true,
   });
 
-  const handleDeleteAccount = async () => {
-    // launch the url
-    try {
-      await Linking.openURL(DELETE_ACCOUNT_URL);
-    } catch (error) {
-      // show toast error
-       Toast.show({
-        text1: "Error opening URL",
-        type: "error",
-      });
-    }
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const handleDeleteAccount = () => {
+    setShowDeleteModal(true);
   };
 
   const toggleLocal = (key: keyof typeof localSettings) => {
@@ -436,6 +428,11 @@ const PrivacySecurityScreen = () => {
           </View>
         </View>
       </ScrollView>
+
+      <DeleteAccountModal
+        visible={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+      />
     </SafeAreaView>
   );
 };

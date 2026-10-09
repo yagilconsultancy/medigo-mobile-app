@@ -100,6 +100,11 @@ const userService = {
     return response.data;
   },
 
+  deleteAccount: async () => {
+    const response = await apiClient.delete("/users/me");
+    return response.data;
+  },
+
   createEmergencyContact: async (data: CreateEmergencyContactRequest) => {
     const response = await apiClient.post("/users/me/emergency-contacts", data);
     return response.data;

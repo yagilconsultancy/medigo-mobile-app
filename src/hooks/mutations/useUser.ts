@@ -237,3 +237,9 @@ export const useUpdatePrivacy = () => {
     },
   });
 };
+
+export const useDeleteAccount = () => {
+  return useMutation({
+    mutationFn: () => userService.deleteAccount(),
+  });
+};
