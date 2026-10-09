@@ -251,7 +251,7 @@ const OnboardingContent = ({ title, desc, btnText, onPress }: any) => {
 type Role = "rider" | "driver";
 
 const DRIVER_NOT_ACTIVATED_MESSAGE =
-  "Your account isn't activated yet. Please email support@getmedigo.com to start your application.";
+  "Your account isn't activated yet. Please email admin@getmedigo.com to start your application.";
 
 /**
  * One entry screen for everyone. A Rider | Driver switch decides what is shown:
