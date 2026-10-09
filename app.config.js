@@ -17,7 +17,7 @@ module.exports = ({ config }) => ({
   ...config,
   name: "Medigo",
   slug: "medigo",
-  version: "1.0.3",
+  version: "1.1.0",
   orientation: "portrait",
   icon: "./assets/med.png",
   userInterfaceStyle: "light",
@@ -72,7 +72,7 @@ module.exports = ({ config }) => ({
     [
       "expo-camera",
       {
-        cameraPermission: "Allow Klimate Ride to access your camera.",
+        cameraPermission: "Allow Medigo to access your camera.",
       },
     ],
     [
@@ -80,7 +80,7 @@ module.exports = ({ config }) => ({
       {
         requestLocationPermission: true,
         locationAlwaysAndWhenInUsePermission:
-          "Allow Klimate Ride to use your location",
+          "Allow Medigo to use your location",
       },
     ],
     ["expo-secure-store"],
@@ -104,7 +104,7 @@ module.exports = ({ config }) => ({
   },
 
   updates: {
-    url: "https://u.expo.dev/2e02639c-db70-4906-951d-f927793a53e7",
+    url: "https://u.expo.dev/de6dbdef-a60e-485e-9f27-dee65e56b3dd",
     checkAutomatically: "ON_LOAD",
     fallbackToCacheTimeout: 30000,
   },

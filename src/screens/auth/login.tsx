@@ -13,7 +13,7 @@ import Padlock from "../../../assets/icons/padlock";
 import { FONT_SIZES } from "../../constants/sizes";
 import Buttons from "../../components/buttons/buttons";
 import RightArrow from "../../../assets/icons/rightArrow";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { commonStyles } from "../../styles/commonStyles";
 import BackButton from "../../components/buttons/backButton";
@@ -70,9 +70,14 @@ function Login() {
   const { colors } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const commonStyling = commonStyles(colors);
+  const route = useRoute<any>();
+  // Coming from driver activation: email is filled in and a short confirmation
+  // is shown, so the driver only has to type the new password.
+  const prefilledEmail: string = route.params?.email ?? "";
+  const justActivated: boolean = route.params?.activated === true;
 
   const [formData, setFormData] = useState<any>({
-    identifier: "",
+    identifier: prefilledEmail,
     password: "",
   });
 
@@ -182,6 +187,23 @@ function Login() {
           </View>
 
           <View>
+            {justActivated ? (
+              <View
+                style={[
+                  styles.activatedNotice,
+                  { backgroundColor: colors.highlightBlue50 },
+                ]}
+              >
+                <Text
+                  style={[
+                    commonStyling.subtitle,
+                    { color: colors.primaryColor, fontSize: 14, lineHeight: 20 },
+                  ]}
+                >
+                  Your account is activated. Log in with your new password.
+                </Text>
+              </View>
+            ) : null}
             <View style={styles.inputContainer}>
               <Input
                 title="Email address"
@@ -313,7 +335,7 @@ function Login() {
                 },
               ]}
             >
-              Don't have an account?{" "}
+              New rider?{" "}
               <Text
                 style={[
                   styles.linkText,
@@ -322,7 +344,41 @@ function Login() {
                   },
                 ]}
               >
-                Sign Up
+                Sign up
+              </Text>
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{
+              marginTop: 12,
+            }}
+            onPress={() =>
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "Splash", params: { startRole: "driver" } }],
+              })
+            }
+          >
+            <Text
+              style={[
+                commonStyling.subtitle,
+                styles.footerText,
+                {
+                  fontSize: FONT_SIZES.BODY,
+                  fontFamily: "SemiBold",
+                },
+              ]}
+            >
+              Driver?{" "}
+              <Text
+                style={[
+                  styles.linkText,
+                  {
+                    color: colors.primaryColor,
+                  },
+                ]}
+              >
+                Activate your account
               </Text>
             </Text>
           </TouchableOpacity>
@@ -335,6 +391,13 @@ function Login() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 24 },
+  activatedNotice: {
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#2F6FED33",
+    marginBottom: 20,
+  },
   header: { marginBottom: 24 },
   backBtn: { marginBottom: 20 },
   stepIndicator: {

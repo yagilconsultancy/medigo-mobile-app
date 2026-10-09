@@ -7,12 +7,15 @@ import {
   Image,
   Dimensions,
   StatusBar,
+  ScrollView,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { ShieldCheck, MapPin, Car, ChevronRight } from "lucide-react-native";
+import { ShieldCheck, Car } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import Buttons from "../../components/buttons/buttons";
+import Input from "../../components/inputs/input";
+import authService from "../../api/services/authService";
 import RightArrow from "../../../assets/icons/rightArrow";
 import { FONT_SIZES } from "../../constants/sizes";
 import useTheme from "../../hooks/useThemes";
@@ -37,7 +40,13 @@ type ScreenStep =
   | "selection";
 
 export default function MediGoApp() {
-  const [step, setStep] = useState<ScreenStep>("splash1");
+  const route = useRoute<any>();
+  // Sent here from the Login screen's "Driver? Activate your account" link:
+  // skip the intro and open the role screen on the Driver tab.
+  const startRole: Role | undefined = route.params?.startRole;
+  const [step, setStep] = useState<ScreenStep>(
+    startRole ? "selection" : "splash1",
+  );
   const { colors, theme } = useTheme();
   const setUserRegion = useMapStore((state) => state.setUserRegion);
   const setPickup = useRideStore((state) => state.setPickup);
@@ -216,7 +225,7 @@ export default function MediGoApp() {
         </>
       ) : (
         <View style={styles.selectionWrapper}>
-          <RoleSelection />
+          <RoleSelection initialRole={startRole} />
         </View>
       )}
     </SafeAreaView>
@@ -239,117 +248,203 @@ const OnboardingContent = ({ title, desc, btnText, onPress }: any) => {
   );
 };
 
-const RoleSelection = () => {
+type Role = "rider" | "driver";
+
+const DRIVER_NOT_ACTIVATED_MESSAGE =
+  "Your account isn't activated yet. Please email support@getmedigo.com to start your application.";
+
+/**
+ * One entry screen for everyone. A Rider | Driver switch decides what is shown:
+ *  - Rider: Sign up and Log in.
+ *  - Driver: no sign up. The driver enters their email and the system checks
+ *    whether an admin has activated the account.
+ */
+const RoleSelection = ({ initialRole }: { initialRole?: Role }) => {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
   const commonStyling = commonStyles(colors);
-  return (
-    <View style={styles.selectionInner}>
-      <Text style={[commonStyling.title, styles.titleLeft]}>
-        How will you use MediGo?
-      </Text>
-      <Text style={[commonStyling.subtitle, styles.descriptionLeft]}>
-        Select how you'll use MediGo.
-      </Text>
 
+  const [role, setRole] = useState<Role>(initialRole ?? "rider");
+  const [driverEmail, setDriverEmail] = useState("");
+  const [isChecking, setIsChecking] = useState(false);
+  const [driverMessage, setDriverMessage] = useState<string | null>(null);
+
+  const handleDriverContinue = async () => {
+    const email = driverEmail.trim().toLowerCase();
+    setDriverMessage(null);
+
+    if (!email || !email.includes("@")) {
+      setDriverMessage("Enter the email address your driver account uses.");
+      return;
+    }
+
+    setIsChecking(true);
+    try {
+      const result = await authService.checkDriverActivation(email);
+      const step = result?.data?.next_step;
+
+      if (step === "set_password") {
+        navigation.navigate("DriverActivation", { email });
+      } else if (step === "login") {
+        navigation.navigate("Login", { email });
+      } else {
+        setDriverMessage(result?.data?.message || DRIVER_NOT_ACTIVATED_MESSAGE);
+      }
+    } catch (e: any) {
+      setDriverMessage(
+        e?.response?.data?.message ||
+          "We couldn't reach MediGo. Check your connection and try again.",
+      );
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  const Segment = ({ value, label }: { value: Role; label: string }) => {
+    const active = role === value;
+    return (
       <TouchableOpacity
         style={[
-          styles.roleCardPrimary,
-          {
-            backgroundColor: colors.primaryColor,
-          },
+          styles.segment,
+          active && { backgroundColor: colors.primaryColor },
         ]}
-        onPress={() => navigation.navigate("RiderRegistrationFlow")}
-      >
-        <View style={styles.iconBoxLight}>
-          <Car color="#FFF" size={32} />
-        </View>
-        <View style={styles.roleRow}>
-          <View>
-            <Text
-              style={[
-                commonStyling.title,
-                styles.roleTitleLight,
-                {
-                  fontFamily: "Bold",
-                  fontSize: FONT_SIZES.TITLE,
-                },
-              ]}
-            >
-              Book a Ride
-            </Text>
-            <Text style={[commonStyling.subtitle, styles.roleDescLight]}>
-              Request safe medical transportation.
-            </Text>
-          </View>
-          <RightArrow color="white" />
-        </View>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[
-          styles.roleCardSecondary,
-          {
-            borderColor: colors.stroke,
-          },
-        ]}
-        onPress={() => navigation.navigate("WelcomeDriverScreen")}
-      >
-        <View style={styles.iconBoxBlue}>
-          <ShieldCheck color="#3B82F6" size={32} />
-        </View>
-        <View style={styles.roleRow}>
-          <View>
-            <Text
-              style={[
-                commonStyling.title,
-                {
-                  fontFamily: "Bold",
-                  fontSize: FONT_SIZES.TITLE,
-                  color: colors.titleText,
-                },
-              ]}
-            >
-              Drive with MediGo
-            </Text>
-            <Text style={[commonStyling.subtitle, styles.roleDescDark]}>
-              For pre-approved drivers only.
-            </Text>
-          </View>
-          <RightArrow color={colors.primaryColor} />
-        </View>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.footerContainer}
         onPress={() => {
-          navigation.navigate("Login");
+          setRole(value);
+          setDriverMessage(null);
         }}
+        accessibilityRole="button"
+        accessibilityState={{ selected: active }}
       >
         <Text
           style={[
             commonStyling.subtitle,
-            styles.footerText,
-            {
-              fontSize: FONT_SIZES.BODY,
-              fontFamily: "SemiBold",
-            },
+            styles.segmentText,
+            { color: active ? "#FFF" : colors.titleText },
           ]}
         >
-          Already have an account?{" "}
-          <Text
-            style={[
-              styles.linkText,
-              {
-                color: colors.primaryColor,
-              },
-            ]}
-          >
-            Log in
-          </Text>
+          {label}
         </Text>
       </TouchableOpacity>
-    </View>
+    );
+  };
+
+  return (
+    <ScrollView
+      style={styles.selectionInner}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      <Text style={[commonStyling.title, styles.titleLeft]}>
+        Welcome to MediGo
+      </Text>
+      <Text style={[commonStyling.subtitle, styles.descriptionLeft]}>
+        Choose how you'll use MediGo.
+      </Text>
+
+      <View style={[styles.segmentWrap, { borderColor: colors.stroke }]}>
+        <Segment value="rider" label="Rider" />
+        <Segment value="driver" label="Driver" />
+      </View>
+
+      {role === "rider" ? (
+        <View>
+          <View style={styles.panelHeader}>
+            <View style={styles.iconBoxBlue}>
+              <Car color="#3B82F6" size={32} />
+            </View>
+            <Text
+              style={[
+                commonStyling.title,
+                styles.panelTitle,
+                { color: colors.titleText },
+              ]}
+            >
+              Book safe medical rides
+            </Text>
+            <Text style={[commonStyling.subtitle, styles.panelText]}>
+              Request reliable transportation to hospitals, clinics, and care
+              centers.
+            </Text>
+          </View>
+
+          <Buttons
+            title="Sign up"
+            onPress={() => navigation.navigate("RiderRegistrationFlow")}
+            rightIcon={<RightArrow />}
+          />
+          <View style={{ height: 12 }} />
+          <Buttons
+            title="Log in"
+            type="outline"
+            onPress={() => navigation.navigate("Login")}
+          />
+        </View>
+      ) : (
+        <View>
+          <View style={styles.panelHeader}>
+            <View style={styles.iconBoxBlue}>
+              <ShieldCheck color="#3B82F6" size={32} />
+            </View>
+            <Text
+              style={[
+                commonStyling.title,
+                styles.panelTitle,
+                { color: colors.titleText },
+              ]}
+            >
+              Drive with MediGo
+            </Text>
+            <Text style={[commonStyling.subtitle, styles.panelText]}>
+              For pre-approved drivers only. Enter the email your driver
+              account was created with.
+            </Text>
+          </View>
+
+          <Input
+            title="Email address"
+            placeholder="you@example.com"
+            value={driverEmail}
+            keyboardType="email-address"
+            onChangeText={(val) => {
+              setDriverEmail(val);
+              setDriverMessage(null);
+            }}
+            disabled={isChecking}
+          />
+
+          {driverMessage ? (
+            <View
+              style={[
+                styles.driverNotice,
+                { backgroundColor: colors.highlightBlue50 },
+              ]}
+            >
+              <Text
+                style={[
+                  commonStyling.subtitle,
+                  {
+                    color: colors.primaryColor,
+                    fontSize: 14,
+                    lineHeight: 20,
+                  },
+                ]}
+              >
+                {driverMessage}
+              </Text>
+            </View>
+          ) : null}
+
+          <View style={{ marginTop: 20 }}>
+            <Buttons
+              title="Continue"
+              onPress={handleDriverContinue}
+              loading={isChecking}
+              rightIcon={<RightArrow />}
+            />
+          </View>
+        </View>
+      )}
+    </ScrollView>
   );
 };
 
@@ -451,6 +546,31 @@ const styles = StyleSheet.create({
   roleDescLight: { color: "rgba(255,255,255,0.8)", marginTop: 8 },
   roleDescDark: { marginTop: 8 },
 
+  segmentWrap: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 28,
+  },
+  segment: {
+    flex: 1,
+    height: 48,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  segmentText: { fontFamily: "Bold", fontSize: 16 },
+  panelHeader: { alignItems: "flex-start", marginBottom: 24 },
+  panelTitle: { fontFamily: "Bold", fontSize: FONT_SIZES.TITLE, marginTop: 16 },
+  panelText: { marginTop: 8, lineHeight: 22 },
+  driverNotice: {
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#2F6FED33",
+  },
   footerContainer: { marginTop: "auto", paddingBottom: 20 },
   footerText: { textAlign: "center" },
   linkText: { fontWeight: "700" },
