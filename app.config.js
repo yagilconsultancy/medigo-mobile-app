@@ -37,7 +37,10 @@ module.exports = ({ config }) => ({
         "This app uses your location to show your position on the map and calculate routes.",
       ITSAppUsesNonExemptEncryption: false,
     },
-    
+
+    config: {
+      googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_KEY,
+    },
   },
 
   android: {
@@ -57,8 +60,11 @@ module.exports = ({ config }) => ({
     permissions: [
       "ACCESS_COARSE_LOCATION",
       "ACCESS_FINE_LOCATION",
+    ],
+    blockedPermissions: [
       "android.permission.CAMERA",
       "android.permission.RECORD_AUDIO",
+      "android.permission.ACCESS_BACKGROUND_LOCATION",
     ],
 
     package: "com.abctransportationhealthinc.medigo",
@@ -70,17 +76,21 @@ module.exports = ({ config }) => ({
 
   plugins: [
     [
-      "expo-camera",
+      "expo-image-picker",
       {
-        cameraPermission: "Allow Medigo to access your camera.",
+        photosPermission:
+          "MediGo uses your photos so you can add a profile picture or upload documents.",
+        cameraPermission:
+          "MediGo uses the camera so you can take a profile picture or a photo of a document.",
+        microphonePermission: false,
       },
     ],
     [
       "expo-location",
       {
-        requestLocationPermission: true,
-        locationAlwaysAndWhenInUsePermission:
-          "Allow Medigo to use your location",
+        locationAlwaysAndWhenInUsePermission: false,
+        locationAlwaysPermission: false,
+        isAndroidBackgroundLocationEnabled: false,
       },
     ],
     ["expo-secure-store"],

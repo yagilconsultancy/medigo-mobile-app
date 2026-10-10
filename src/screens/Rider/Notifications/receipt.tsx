@@ -97,7 +97,7 @@ const getReceiptHtml = (receipt: any) => `
         <div class="row"><div class="label">Paid with</div><div class="value">${escapeHtml(receipt.paymentMethod)}</div></div>
       </div>
 
-      <div class="footer">Questions about this receipt? Contact support@medigo.com</div>
+      <div class="footer">Questions about this receipt? Contact support@getmedigo.com</div>
     </body>
   </html>
 `;
@@ -530,7 +530,7 @@ const ReceiptScreen = () => {
         </View>
 
         <Text style={styles.footerContact}>
-          Questions about this receipt? Contact support@medigo.com
+          Questions about this receipt? Contact support@getmedigo.com
         </Text>
       </ScrollView>
 

@@ -240,7 +240,7 @@ const RideDetails = () => {
             </Text>
             <View style={styles.driverProfileRow}>
               <Image
-                source={{ uri: "https://i.pravatar.cc/100?u=john" }}
+                source={require("../../../../assets/images/noProfileImage.jpg")}
                 style={styles.driverAvatar}
               />
               <View style={styles.driverTextContainer}>

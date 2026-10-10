@@ -45,6 +45,15 @@ import { syncUserProfile } from "./src/utils/syncUserProfile";
 import { useUserStore } from "./src/store/userStore";
 import { StripeProvider } from "@stripe/stripe-react-native";
 import Constants from "expo-constants";
+import AppErrorBoundary from "./src/components/appErrorBoundary";
+
+// Release builds keep warnings and errors only; debug output can carry
+// personal details and must not end up in device logs.
+if (!__DEV__) {
+  console.log = () => {};
+  console.info = () => {};
+  console.debug = () => {};
+}
 
 enableScreens(true);
 
@@ -81,8 +90,6 @@ const DriverMainTabs = () => (
     <Tab.Screen name="DriverProfileStack" component={DriverProfileStack} />
   </Tab.Navigator>
 );
-
-console.log("APP_ENV", stripePublishableKey);
 
 const AppNavigator = () => {
   return (
@@ -170,6 +177,7 @@ const App: React.FC = () => {
   if (!isReady || !fontsLoaded) return null;
 
   return (
+    <AppErrorBoundary>
     <QueryProvider>
       <StripeProvider publishableKey={stripePublishableKey}>
         <AuthProvider>
@@ -204,6 +212,7 @@ const App: React.FC = () => {
         </AuthProvider>
       </StripeProvider>
     </QueryProvider>
+    </AppErrorBoundary>
   );
 };
 
