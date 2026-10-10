@@ -37,7 +37,10 @@ module.exports = ({ config }) => ({
         "This app uses your location to show your position on the map and calculate routes.",
       ITSAppUsesNonExemptEncryption: false,
     },
-    
+
+    config: {
+      googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_KEY,
+    },
   },
 
   android: {
