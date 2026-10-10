@@ -37,7 +37,7 @@ const SafetyCenterScreen = () => {
   const [isSharingLocation, setIsSharingLocation] = useState(false);
 
   const openExternalLink = async (path: string) => {
-    const url = `${WEB_CONFIG.PORTFOLIO_BASE_URL}${path}`;
+    const url = `${WEB_CONFIG.SITE_BASE_URL}${path}`;
 
     try {
       await Linking.openURL(url);

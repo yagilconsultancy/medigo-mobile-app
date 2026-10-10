@@ -69,13 +69,13 @@ apiClient.interceptors.request.use(
     const token = await storage.getToken();
     const skipAuth = (config as any).skipAuth === true;
 
-    console.log("📤 API Request:", {
-      url: `${config.baseURL}${config.url}`,
-      method: config.method?.toUpperCase(),
-      hasToken: !!token,
-      data: config.data,
-      token,
-    });
+    if (__DEV__) {
+      console.log("📤 API Request:", {
+        url: `${config.baseURL}${config.url}`,
+        method: config.method?.toUpperCase(),
+        hasToken: !!token,
+      });
+    }
 
     if (token && !skipAuth) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -106,13 +106,12 @@ apiClient.interceptors.response.use(
 
     if (error.response) {
       // Server responded with error
-      console.error("❌ API Error Response:", {
-        url: error.config?.url,
-        status: error.response.status,
-        statusText: error.response.statusText,
-        data: error.response.data,
-        headers: error.response.headers,
-      });
+      if (__DEV__) {
+        console.error("❌ API Error Response:", {
+          url: error.config?.url,
+          status: error.response.status,
+        });
+      }
       if (
         !suppressGlobalErrorToast &&
         !isLoginRequest(requestUrl) &&

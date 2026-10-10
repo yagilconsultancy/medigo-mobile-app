@@ -662,7 +662,7 @@ const LocationConsentScreen = () => {
               },
             ]}
           >
-            Contact privacy@medigo.com to exercise these rights.
+            Contact info@getmedigo.com to exercise these rights.
           </Text>
         </View>
 
@@ -860,7 +860,7 @@ const LocationConsentScreen = () => {
                 },
               ]}
             >
-              Email: privacy@medigo.com
+              Email: info@getmedigo.com
             </Text>
             <Text
               style={[

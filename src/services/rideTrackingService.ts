@@ -1,4 +1,5 @@
 import { io, Socket } from "socket.io-client";
+import { SOCKET_BASE_URL } from "../utils/constants";
 
 interface LocationUpdate {
   ride_id: string;
@@ -21,7 +22,7 @@ class RideTrackingService {
   connect(
     jwtToken: string,
     onConnected?: () => void,
-    backendUrl: string = "https://staging.getmedigo.com",
+    backendUrl: string = SOCKET_BASE_URL,
   ) {
     if (this.socket?.connected) {
       if (this.currentToken !== jwtToken) {
@@ -39,7 +40,7 @@ class RideTrackingService {
     console.log("🛣️ Path:", "/ws/socket.io/tracking");
     console.log("🔑 Token present:", !!jwtToken);
 
-    this.socket = io("https://staging.getmedigo.com/tracking", {
+    this.socket = io(`${backendUrl}/tracking`, {
       // URL + Namespace
       path: "/api/v1/ws/socket.io", // Matches documentation exactly
       transports: ["websocket", "polling"],

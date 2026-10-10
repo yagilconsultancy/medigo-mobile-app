@@ -1,4 +1,5 @@
 import { io, Socket } from "socket.io-client";
+import { SOCKET_BASE_URL } from "../utils/constants";
 import * as Location from "expo-location";
 
 class LocationTrackingService {
@@ -11,11 +12,11 @@ class LocationTrackingService {
   connect(
     jwtToken: string,
     onConnected?: () => void,
-    backendUrl: string = "https://staging.getmedigo.com",
+    backendUrl: string = SOCKET_BASE_URL,
   ) {
     if (this.socket?.connected) return;
 
-    this.socket = io("https://staging.getmedigo.com/tracking", {
+    this.socket = io(`${backendUrl}/tracking`, {
       // URL + Namespace
       path: "/api/v1/ws/socket.io", // Matches documentation exactly
       transports: ["websocket", "polling"],
