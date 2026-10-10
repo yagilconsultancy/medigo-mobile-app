@@ -17,7 +17,10 @@ import { commonStyles } from "../../../styles/commonStyles";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useUserStore } from "../../../store/userStore";
-import { useEarningsSummary } from "../../../hooks/queries/useEarningSummary";
+import {
+  useDriverStats,
+  useMyRatings,
+} from "../../../hooks/queries/useDriverRatings";
 import { LinearGradient } from "expo-linear-gradient";
 import { useDriverUpcomingRides } from "../../../hooks/queries/useDriverUpcomingRide";
 import { useUpdateDriverStatus } from "../../../hooks/mutations/useUser";
@@ -42,11 +45,13 @@ const DriverDashboard = () => {
   }, [user?.data?.is_active]);
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const {
-    data,
-    isLoading: earningsLoading,
-    refetch: refetchEarningsSummary,
-  } = useEarningsSummary();
-  const summary = data?.data;
+    data: statsData,
+    isLoading: statsLoading,
+    refetch: refetchStats,
+  } = useDriverStats();
+  const { data: ratingsData, refetch: refetchRatings } = useMyRatings();
+  const stats = statsData?.data;
+  const myRating = ratingsData?.data;
   const {
     data: driverUpcomingRides,
     isLoading,
@@ -60,11 +65,15 @@ const DriverDashboard = () => {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([refetchEarningsSummary(), refetchUpcomingRides()]);
+      await Promise.all([
+        refetchStats(),
+        refetchRatings(),
+        refetchUpcomingRides(),
+      ]);
     } finally {
       setRefreshing(false);
     }
-  }, [refetchEarningsSummary, refetchUpcomingRides]);
+  }, [refetchStats, refetchRatings, refetchUpcomingRides]);
 
   const handleToggleOnline = (value: boolean) => {
     // Update UI immediately for a snappy feel
@@ -92,7 +101,7 @@ const DriverDashboard = () => {
     };
   }, [user]);
 
-  if (isLoading || earningsLoading) {
+  if (isLoading || statsLoading) {
     return <RiderHomeSkeleton />;
   }
 
@@ -259,29 +268,6 @@ const DriverDashboard = () => {
                 Receiving ride requests
               </Text>
 
-              <Text
-                style={[
-                  commonStyling.subtitle,
-                  {
-                    fontSize: 12,
-                  },
-                ]}
-              >
-                Today's Earnings
-              </Text>
-              <Text
-                style={[
-                  styles.earningsAmount,
-                  {
-                    fontSize: 48,
-                    fontFamily: "Bold",
-                    color: colors.primaryColor,
-                  },
-                ]}
-              >
-                ${summary?.earnings_today}
-              </Text>
-
               <View
                 style={[
                   styles.statsRow,
@@ -300,7 +286,7 @@ const DriverDashboard = () => {
                       },
                     ]}
                   >
-                    Trips Today
+                    Total Trips
                   </Text>
                   <Text
                     style={[
@@ -311,7 +297,7 @@ const DriverDashboard = () => {
                       },
                     ]}
                   >
-                    {summary?.trips_today}
+                    {stats?.total_trips ?? 0}
                   </Text>
                 </View>
                 <View
@@ -343,7 +329,7 @@ const DriverDashboard = () => {
                       },
                     ]}
                   >
-                    {summary?.hours_today}
+                    {stats?.hours_online ?? 0}
                   </Text>
                 </View>
                 <View
@@ -367,7 +353,9 @@ const DriverDashboard = () => {
                     Rating
                   </Text>
                   <View style={styles.ratingRow}>
-                    <Text style={styles.star}>★</Text>
+                    {!!myRating?.total_ratings && (
+                      <Text style={styles.star}>★</Text>
+                    )}
                     <Text
                       style={[
                         commonStyling.title,
@@ -377,7 +365,9 @@ const DriverDashboard = () => {
                         },
                       ]}
                     >
-                      4.8
+                      {myRating?.total_ratings
+                        ? Number(myRating.average_rating).toFixed(1)
+                        : "No ratings yet"}
                     </Text>
                   </View>
                 </View>

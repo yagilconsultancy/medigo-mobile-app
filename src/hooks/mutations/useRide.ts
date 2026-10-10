@@ -134,3 +134,23 @@ export const useShareRide = () => {
     },
   });
 };
+
+export const useSubmitDriverRating = (rideId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: { rating: number; comment?: string }) =>
+      rideService.submitDriverRating(rideId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ride-detail", rideId] });
+    },
+    onError: (error: any) => {
+      const detail = error?.response?.data?.detail;
+      const message =
+        (typeof detail === "string" ? detail : detail?.[0]?.msg) ||
+        error?.response?.data?.message ||
+        "Could not submit your rating. Please try again.";
+      Alert.alert("Rating not sent", message);
+    },
+  });
+};

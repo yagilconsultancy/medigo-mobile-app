@@ -19,7 +19,7 @@ import {
   Calendar,
   Car,
   X,
-  CircleDollarSign,
+  Star,
   MessageSquare,
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -93,7 +93,7 @@ export default function DriverNavbar({ state, navigation }: BottomTabBarProps) {
           />
           <NavTab
             icon={
-              <CircleDollarSign
+              <Star
                 color={
                   currentRouteName === "DriverWalletStack"
                     ? colors.primaryColor
@@ -102,10 +102,10 @@ export default function DriverNavbar({ state, navigation }: BottomTabBarProps) {
                 size={24}
               />
             }
-            label="Earnings"
+            label="Ratings"
             onPress={() => {
               navigation.navigate("DriverWalletStack", {
-                screen: "DriverEarningsDashboard",
+                screen: "DriverRatings",
               });
             }}
             active={currentRouteName === "DriverWalletStack"}

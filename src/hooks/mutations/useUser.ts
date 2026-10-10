@@ -37,6 +37,24 @@ export const useUpdateProfileMutation = () => {
   });
 };
 
+export const useUploadAvatarMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (uri: string) => userService.uploadAvatar(uri),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+    },
+    onError: (error: any) => {
+      const detail = error?.response?.data?.detail;
+      const message =
+        (typeof detail === "string" ? detail : detail?.[0]?.msg) ||
+        "Your photo could not be uploaded. Please try again.";
+      Alert.alert("Photo not saved", message);
+    },
+  });
+};
+
 export const useUpdateConsentMutation = () => {
   const queryClient = useQueryClient();
 

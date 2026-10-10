@@ -8,6 +8,8 @@ import {
   StatusBar,
   Image,
   ActivityIndicator,
+  TextInput,
+  Linking,
 } from "react-native";
 import {
   X,
@@ -19,6 +21,7 @@ import {
   Share2,
   Info,
   CheckCircle,
+  FileText,
 } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -32,12 +35,17 @@ import { RideDetailsSkeleton } from "../../../components/skelentonAnimation/ride
 import OverlayBottomSheet, {
   OverlayBottomSheetRef,
 } from "../../../components/modals/overlayBottomSheet";
-import { useCancelRide, useShareRide } from "../../../hooks/mutations/useRide";
+import {
+  useCancelRide,
+  useShareRide,
+  useSubmitDriverRating,
+} from "../../../hooks/mutations/useRide";
 import { formatDuration } from "../../../utils/formatDuration";
 import { formatPrice } from "../../../utils/formatPrice";
 import { useGetFareEstimateMutation } from "../../../hooks/queries/useGetBaseFareEstimate";
 import RideRouteCard from "../../../components/map/rideRouteCard";
 import { formatDisplayText } from "../../../utils/formatText";
+import { useDriverContact } from "../../../hooks/queries/useDriverContact";
 
 const RideDetails = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
@@ -50,14 +58,21 @@ const RideDetails = () => {
   const { mutate: shareTrip, isPending } = useShareRide();
   const { mutate: cancelRide, isPending: isCancelling } = useCancelRide(id);
   const { data, isLoading } = useRideDetail(id);
+  const isCompleted = data?.data.status === "completed";
+  const hasDriver = !!data?.data.driver_id;
+  const { data: driverContact } = useDriverContact(id, hasDriver);
+  const driver = driverContact?.data;
+  const { mutate: submitRating, isPending: isSubmittingRating } =
+    useSubmitDriverRating(id);
+  const [stars, setStars] = useState(0);
+  const [comment, setComment] = useState("");
+  const givenRating: any = data?.data.driver_rating;
 
   const {
     mutate: fetchEstimates,
     isPending:isPendingBaseFareEstimate,
     data: estimateResults,
   } = useGetFareEstimateMutation();
-
-  console.log(estimateResults);
 
   const handleCalculateFare = () => {
     fetchEstimates({
@@ -216,7 +231,7 @@ const RideDetails = () => {
         </View>
 
         {/* Driver Card */}
-        {data?.data.status === "confirmed" && (
+        {hasDriver && driver && (
           <View
             style={[
               styles.card,
@@ -240,7 +255,11 @@ const RideDetails = () => {
             </Text>
             <View style={styles.driverProfileRow}>
               <Image
-                source={require("../../../../assets/images/noProfileImage.jpg")}
+                source={
+                  driver.avatar_url && /^https?:/.test(driver.avatar_url)
+                    ? { uri: driver.avatar_url }
+                    : require("../../../../assets/images/noProfileImage.jpg")
+                }
                 style={styles.driverAvatar}
               />
               <View style={styles.driverTextContainer}>
@@ -255,7 +274,7 @@ const RideDetails = () => {
                         },
                       ]}
                     >
-                      John Smith
+                      {`${driver.first_name ?? ""} ${driver.last_name ?? ""}`.trim() || "Your driver"}
                     </Text>
                     <CheckCircle
                       size={14}
@@ -263,25 +282,27 @@ const RideDetails = () => {
                       style={{ marginLeft: 4 }}
                     />
                   </View>
-                  <View style={styles.rowCenter}>
-                    <Text
-                      style={[
-                        commonStyling.subtitle,
-                        {
-                          fontSize: 18,
-                          fontFamily: "Bold",
-                        },
-                      ]}
-                    >
-                      4.9
-                    </Text>
-                    <Star
-                      size={14}
-                      color="#F59E0B"
-                      fill="#F59E0B"
-                      style={{ marginLeft: 2 }}
-                    />
-                  </View>
+                  {driver.rating != null && (
+                    <View style={styles.rowCenter}>
+                      <Text
+                        style={[
+                          commonStyling.subtitle,
+                          {
+                            fontSize: 18,
+                            fontFamily: "Bold",
+                          },
+                        ]}
+                      >
+                        {Number(driver.rating).toFixed(1)}
+                      </Text>
+                      <Star
+                        size={14}
+                        color="#F59E0B"
+                        fill="#F59E0B"
+                        style={{ marginLeft: 2 }}
+                      />
+                    </View>
+                  )}
                 </View>
                 <Text
                   style={[
@@ -324,7 +345,9 @@ const RideDetails = () => {
                   },
                 ]}
               >
-                Toyota Camry • Blue
+                {[driver.vehicle_make, driver.vehicle_model, driver.vehicle_color]
+                  .filter(Boolean)
+                  .join(" • ") || "Not available"}
               </Text>
             </View>
           </View>
@@ -349,7 +372,7 @@ const RideDetails = () => {
                 },
               ]}
             >
-              Estimated duration
+              {isCompleted ? "Trip duration" : "Estimated duration"}
             </Text>
             <Text
               style={[
@@ -361,7 +384,12 @@ const RideDetails = () => {
                 },
               ]}
             >
-              {formatDuration(data?.data.estimated_duration_minutes)}
+              {formatDuration(
+                isCompleted
+                  ? (data?.data.actual_duration_minutes ??
+                      data?.data.estimated_duration_minutes)
+                  : data?.data.estimated_duration_minutes,
+              )}
             </Text>
           </View>
           <View style={styles.iconCircleLightBlue}>
@@ -424,12 +452,18 @@ const RideDetails = () => {
                 },
               ]}
             >
-              {formatPrice(estimateResults?.data.total_fare, true)}
+              {formatPrice(
+                isCompleted && data?.data.final_fare
+                  ? data.data.final_fare
+                  : estimateResults?.data.total_fare,
+                true,
+              )}
             </Text>
           </View>
         </View>
 
         {/* Cancellation Policy Warning */}
+        {!isCompleted && data?.data.status !== "cancelled" && (
         <View style={styles.policyCard}>
           <AlertCircle size={20} color="#F59E0B" />
           <View style={styles.policyTextContainer}>
@@ -440,8 +474,10 @@ const RideDetails = () => {
             </Text>
           </View>
         </View>
+        )}
 
         {/* Need Assistance Card */}
+        {!isCompleted && (
         <View
           style={[
             styles.card,
@@ -474,15 +510,126 @@ const RideDetails = () => {
             sub="Share trip details"
           /> */}
         </View>
+        )}
 
-        {data.data.status === "confirmed" && (
-          <TouchableOpacity style={styles.contactBtn}>
+        {isCompleted && (
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: colors.homelightPrimaryBlue50,
+                borderColor: colors.lightPrimaryBlueBorder,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.sectionLabel,
+                commonStyling.title,
+                { fontSize: 14, fontFamily: "Bold" },
+              ]}
+            >
+              Rate your driver
+            </Text>
+            {givenRating ? (
+              <View>
+                <View style={{ flexDirection: "row", gap: 6 }}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Star
+                      key={n}
+                      size={28}
+                      color="#F59E0B"
+                      fill={n <= givenRating.rating ? "#F59E0B" : "transparent"}
+                    />
+                  ))}
+                </View>
+                <Text style={[commonStyling.subtitle, { marginTop: 8 }]}>
+                  Thanks, you rated this trip {givenRating.rating} out of 5.
+                </Text>
+                {!!givenRating.comment && (
+                  <Text style={[commonStyling.subtitle, { marginTop: 4 }]}>
+                    {givenRating.comment}
+                  </Text>
+                )}
+              </View>
+            ) : !hasDriver ? (
+              <Text style={commonStyling.subtitle}>
+                No driver was assigned to this trip.
+              </Text>
+            ) : (
+              <View>
+                <View style={{ flexDirection: "row", gap: 6 }}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <TouchableOpacity
+                      key={n}
+                      onPress={() => setStars(n)}
+                      accessibilityLabel={`${n} star${n > 1 ? "s" : ""}`}
+                    >
+                      <Star
+                        size={32}
+                        color="#F59E0B"
+                        fill={n <= stars ? "#F59E0B" : "transparent"}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TextInput
+                  value={comment}
+                  onChangeText={setComment}
+                  placeholder="Add a comment (optional)"
+                  placeholderTextColor={colors.textSecondary}
+                  multiline
+                  maxLength={500}
+                  style={[
+                    styles.ratingInput,
+                    {
+                      color: colors.titleText,
+                      borderColor: colors.lightPrimaryBlueBorder,
+                    },
+                  ]}
+                />
+                <TouchableOpacity
+                  style={[styles.contactBtn, { opacity: stars ? 1 : 0.5 }]}
+                  disabled={!stars || isSubmittingRating}
+                  onPress={() =>
+                    submitRating({
+                      rating: stars,
+                      comment: comment.trim() || undefined,
+                    })
+                  }
+                >
+                  {isSubmittingRating ? (
+                    <ActivityIndicator color="#FFF" />
+                  ) : (
+                    <Text style={styles.contactBtnText}>Submit rating</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
+
+        {isCompleted && (
+          <TouchableOpacity
+            style={styles.contactBtn}
+            onPress={() => navigation.navigate("ReceiptScreen", { rideId: id })}
+          >
+            <FileText size={20} color="#FFF" />
+            <Text style={styles.contactBtnText}>View Receipt</Text>
+          </TouchableOpacity>
+        )}
+
+        {!isCompleted && hasDriver && !!driver?.phone && (
+          <TouchableOpacity
+            style={styles.contactBtn}
+            onPress={() => Linking.openURL(`tel:${driver.phone}`)}
+          >
             <Phone size={20} color="#FFF" />
             <Text style={styles.contactBtnText}>Contact Driver</Text>
           </TouchableOpacity>
         )}
 
-        {data?.data.status !== "cancelled" && (
+        {!isCompleted && data?.data.status !== "cancelled" && (
           <TouchableOpacity
             style={styles.shareBtn}
             onPress={() => shareTrip(data?.data.id)}
@@ -505,7 +652,7 @@ const RideDetails = () => {
           </TouchableOpacity>
         )}
 
-        {data?.data.status !== "cancelled" && (
+        {!isCompleted && data?.data.status !== "cancelled" && (
           <TouchableOpacity
             style={styles.cancelLink}
             onPress={() => {
@@ -882,6 +1029,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 10,
     gap: 10,
+  },
+  ratingInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    marginTop: 12,
+    marginBottom: 12,
+    padding: 12,
+    minHeight: 64,
+    textAlignVertical: "top",
   },
   contactBtnText: { color: "#FFF", fontSize: 16, fontWeight: "800" },
   shareBtn: {
