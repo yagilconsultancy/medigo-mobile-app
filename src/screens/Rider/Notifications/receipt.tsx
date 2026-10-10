@@ -29,6 +29,9 @@ import { FONT_SIZES } from "../../../constants/sizes";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useRideDetail } from "../../../hooks/queries/useRideDetails";
+import { useDriverContact } from "../../../hooks/queries/useDriverContact";
+import { useQuery } from "@tanstack/react-query";
+import apiClient from "../../../api/client";
 import { format } from "date-fns";
 import { formatPrice } from "../../../utils/formatPrice";
 import { formatDisplayText } from "../../../utils/formatText";
@@ -71,7 +74,7 @@ const getReceiptHtml = (receipt: any) => `
           <h1>MediGo Receipt</h1>
           <div class="muted">Trip #${escapeHtml(receipt.tripId)}</div>
         </div>
-        <div class="badge">PAYMENT COMPLETE</div>
+        <div class="badge" style="background:${receipt.badgeBg};color:${receipt.badgeFg}">${escapeHtml(receipt.statusLabel)}</div>
       </div>
 
       <div class="section">
@@ -86,16 +89,18 @@ const getReceiptHtml = (receipt: any) => `
       </div>
 
       <div class="section">
-        <div class="section-title">FARE BREAKDOWN</div>
-        <div class="row"><div class="label">Base Fare</div><div class="value">${escapeHtml(receipt.baseFare)}</div></div>
-        <div class="row"><div class="label">Service Fee</div><div class="value">${escapeHtml(receipt.serviceFee)}</div></div>
+        <div class="section-title">FARE</div>
         <div class="row"><div class="label">Total</div><div class="total">${escapeHtml(receipt.total)}</div></div>
       </div>
 
-      <div class="section">
+      ${
+        receipt.paymentMethod
+          ? `<div class="section">
         <div class="section-title">PAYMENT</div>
-        <div class="row"><div class="label">Paid with</div><div class="value">${escapeHtml(receipt.paymentMethod)}</div></div>
-      </div>
+        <div class="row"><div class="label">Status</div><div class="value">${escapeHtml(receipt.paymentMethod)}</div></div>
+      </div>`
+          : ""
+      }
 
       <div class="footer">Questions about this receipt? Contact support@getmedigo.com</div>
     </body>
@@ -112,6 +117,38 @@ const ReceiptScreen = () => {
   const [isSharing, setIsSharing] = React.useState(false);
   const [isDownloading, setIsDownloading] = React.useState(false);
   const ride: any = data?.data;
+  const { data: driverContact } = useDriverContact(rideId, !!ride?.driver_id);
+  const driverInfo = driverContact?.data;
+  const { data: paymentReceipt } = useQuery({
+    queryKey: ["payment-receipt", rideId],
+    queryFn: async () =>
+      (await apiClient.get(`/payments/receipts/${rideId}`)).data,
+    enabled: !!rideId,
+    retry: false,
+  });
+  const paymentStatus: string =
+    paymentReceipt?.data?.payment_status ?? "not_recorded";
+  const paidAt: Date | null = paymentReceipt?.data?.paid_at
+    ? new Date(paymentReceipt.data.paid_at)
+    : null;
+  const paymentBadge: Record<string, string> = {
+    paid: "PAYMENT COMPLETE",
+    pending: "PAYMENT PENDING",
+    failed: "PAYMENT FAILED",
+    refunded: "PAYMENT REFUNDED",
+  };
+  const badgeColors: Record<string, { bg: string; fg: string }> = {
+    pending: { bg: "#FEF3C7", fg: "#92400E" },
+    failed: { bg: "#FEE2E2", fg: "#B91C1C" },
+    refunded: { bg: "#E0F2FE", fg: "#0369A1" },
+  };
+  const badge = badgeColors[paymentStatus];
+  const paymentText: Record<string, string> = {
+    paid: paidAt ? `Paid on ${format(paidAt, "MMM dd, yyyy")}` : "Paid",
+    pending: "Payment pending",
+    failed: "Payment failed",
+    refunded: "Refunded",
+  };
   const scheduledAt = ride?.scheduled_at ? new Date(ride.scheduled_at) : null;
   const baseFareAmount = Number(ride?.estimated_fare ?? 0);
   const totalAmount = Number(ride?.final_fare ?? ride?.estimated_fare ?? 0);
@@ -122,13 +159,22 @@ const ReceiptScreen = () => {
     time: scheduledAt ? format(scheduledAt, "hh:mm a") : "N/A",
     pickup: ride?.pickup_address ?? "N/A",
     destination: ride?.destination_address ?? "N/A",
-    driver: ride?.driver_name ?? "N/A",
+    driver:
+      `${driverInfo?.first_name ?? ""} ${driverInfo?.last_name ?? ""}`.trim() ||
+      "N/A",
     serviceType: formatDisplayText(ride?.trip_type) || "N/A",
     rideType: formatDisplayText(ride?.ride_type) || "N/A",
     baseFare: formatPrice(baseFareAmount, true),
     serviceFee: formatPrice(serviceFeeAmount, true),
     total: formatPrice(totalAmount, true),
-    paymentMethod: ride?.payment_method ?? "Paid online",
+    paymentMethod: paymentText[paymentStatus] ?? "",
+    badgeBg: badge?.bg ?? "#ecfdf5",
+    badgeFg: badge?.fg ?? "#047857",
+    statusLabel:
+      paymentBadge[paymentStatus] ??
+      (ride?.status === "completed"
+        ? "RIDE COMPLETED"
+        : (formatDisplayText(ride?.status) || "").toUpperCase()),
     fileName: `medigo-receipt-${ride?.id ? String(ride.id).slice(0, 8) : "ride"}.pdf`,
   };
 
@@ -323,11 +369,19 @@ const ReceiptScreen = () => {
             style={[
               styles.successBadge,
               {
-                backgroundColor: colors.darkGreen,
+                backgroundColor: badge?.bg ?? colors.darkGreen,
               },
             ]}
           >
-            <Text style={styles.successBadgeText}>✓ PAYMENT COMPLETE</Text>
+            <Text
+              style={[
+                styles.successBadgeText,
+                badge ? { color: badge.fg } : null,
+              ]}
+            >
+              {paymentStatus === "paid" || !badge ? "✓ " : ""}
+              {receipt.statusLabel}
+            </Text>
           </View>
         </View>
 
@@ -433,7 +487,7 @@ const ReceiptScreen = () => {
         {/* FARE BREAKDOWN Section */}
         <SectionHeader
           icon={<CreditCard size={16} color="#3B82F6" />}
-          title="FARE BREAKDOWN"
+          title="FARE"
         />
 
         <View
@@ -444,35 +498,6 @@ const ReceiptScreen = () => {
             },
           ]}
         >
-          <View style={styles.fareRow}>
-            <Text style={[commonStyling.subtitle]}>Base Fare</Text>
-            <Text
-              style={[
-                commonStyling.title,
-                {
-                  fontSize: FONT_SIZES.BODY,
-                  fontFamily: "SemiBold",
-                },
-              ]}
-            >
-              {receipt.baseFare}
-            </Text>
-          </View>
-          <View style={styles.fareRow}>
-            <Text style={[commonStyling.subtitle]}>Service Fee</Text>
-            <Text
-              style={[
-                commonStyling.title,
-                {
-                  fontSize: FONT_SIZES.BODY,
-                  fontFamily: "SemiBold",
-                },
-              ]}
-            >
-              {receipt.serviceFee}
-            </Text>
-          </View>
-          <View style={styles.totalDivider} />
           <View style={styles.fareRow}>
             <Text
               style={[
@@ -501,6 +526,7 @@ const ReceiptScreen = () => {
         </View>
 
         {/* Payment Method Card */}
+        {!!receipt.paymentMethod && (
         <View
           style={[
             styles.paymentMethodCard,
@@ -513,7 +539,7 @@ const ReceiptScreen = () => {
             <CreditCard color="#3B82F6" size={20} />
           </View>
           <View style={{ marginLeft: 12 }}>
-            <Text style={styles.paidWithLabel}>Paid with</Text>
+            <Text style={styles.paidWithLabel}>Payment</Text>
             <Text
               style={[
                 commonStyling.title,
@@ -528,6 +554,7 @@ const ReceiptScreen = () => {
             </Text>
           </View>
         </View>
+        )}
 
         <Text style={styles.footerContact}>
           Questions about this receipt? Contact support@getmedigo.com

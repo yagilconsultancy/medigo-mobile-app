@@ -420,6 +420,8 @@ const RideDetails = () => {
           >
             Fare Details
           </Text>
+          {!isCompleted && (
+            <>
           <FareRow
             label="Base fare"
             value={formatPrice(estimateResults?.data.base_fare, true)}
@@ -429,7 +431,10 @@ const RideDetails = () => {
             value={formatPrice(estimateResults?.data.distance_charge, true)}
           />
 
-          <View style={styles.fareDivider} />
+            </>
+          )}
+
+          {!isCompleted && <View style={styles.fareDivider} />}
           <View style={styles.rowBetween}>
             <Text
               style={[
