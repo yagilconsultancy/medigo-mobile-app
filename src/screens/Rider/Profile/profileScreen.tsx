@@ -30,6 +30,7 @@ import Header from "../../../components/reuseables/header";
 import { commonStyles } from "../../../styles/commonStyles";
 import { useUserProfile } from "../../../hooks/queries/useUserProfile";
 import { useUserStore } from "../../../store/userStore";
+import { signOut } from "../../../utils/signOut";
 import ModalComponent from "../../../components/modals/modal";
 import Buttons from "../../../components/buttons/buttons";
 import { ProfileSkeleton } from "../../../components/skelentonAnimation/profileSkelenton";
@@ -45,7 +46,6 @@ const ProfileScreen = () => {
   const isLight = theme === "light";
   const commonStyling = commonStyles(colors);
   const { data, isLoading } = useUserProfile();
-  const logout = useUserStore((state) => state.logout);
   const [showLogoutModal, setshowLogoutModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -421,7 +421,7 @@ const ProfileScreen = () => {
               type="danger"
               title="Yes"
               onPress={async () => {
-                await logout();
+                await signOut();
                 navigation.reset({
                   index: 0,
                   routes: [

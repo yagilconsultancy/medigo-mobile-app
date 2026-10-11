@@ -31,6 +31,7 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useDriverProfile } from "../../../hooks/queries/useDriverProfile";
 import { useUserStore } from "../../../store/userStore";
+import { signOut } from "../../../utils/signOut";
 import ModalComponent from "../../../components/modals/modal";
 import Buttons from "../../../components/buttons/buttons";
 import { ProfileSkeleton } from "../../../components/skelentonAnimation/profileSkelenton";
@@ -99,7 +100,6 @@ export default function DriverProfileScreen() {
   const profile = profileData?.data;
   const [showLogoutModal, setshowLogoutModal] = useState(false);
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
-  const logout = useUserStore((state) => state.logout);
 
   if (isLoading) {
     return <ProfileSkeleton />;
@@ -441,7 +441,7 @@ export default function DriverProfileScreen() {
               type="danger"
               title="Yes"
               onPress={async () => {
-                await logout();
+                await signOut();
                 navigation.reset({
                   index: 0,
                   routes: [

@@ -53,12 +53,16 @@ export const useUpdateRideStatus = () => {
         `✅ Ride ${variables.rideId} status moved to: ${variables.payload.status}`,
       );
 
-      // Invalidate active ride data caches to trigger screen UI updates automatically
+      // Refresh every screen that shows this ride, for the driver and rider.
+      queryClient.invalidateQueries({ queryKey: ["activeRide"] });
       queryClient.invalidateQueries({
-        queryKey: ["active-ride", variables.rideId],
+        queryKey: ["ride-detail", variables.rideId],
       });
-      queryClient.invalidateQueries({ queryKey: ["rides-history"] });
       queryClient.invalidateQueries({ queryKey: ["rideTimeline"] });
+      queryClient.invalidateQueries({ queryKey: ["upcoming-rides"] });
+      queryClient.invalidateQueries({ queryKey: ["my-rides"] });
+      queryClient.invalidateQueries({ queryKey: ["rides-history"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-stats"] });
     },
     onError: (error) => {
       console.error("❌ Failed to transition ride status:", error);
@@ -78,9 +82,14 @@ export const useCancelRide = (rideId: string) => {
     mutationFn: (payload: CancelRidePayload) =>
       rideService.cancelRide(rideId, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["my-rides"],
-      });
+      // Refresh every screen that shows this ride so a cancelled ride does not
+      // keep its old status or its Cancel button.
+      queryClient.invalidateQueries({ queryKey: ["my-rides"] });
+      queryClient.invalidateQueries({ queryKey: ["ride-detail", rideId] });
+      queryClient.invalidateQueries({ queryKey: ["rideTimeline"] });
+      queryClient.invalidateQueries({ queryKey: ["activeRide"] });
+      queryClient.invalidateQueries({ queryKey: ["upcoming-rides"] });
+      queryClient.invalidateQueries({ queryKey: ["rides-history"] });
     },
     onError: (error: any) => {},
   });

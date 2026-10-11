@@ -32,7 +32,7 @@ import { getLocationTypeStyles } from "../../../utils/getLocationTypeStyles";
 import LocationCard from "../../../components/cards/locationCard";
 import MapScreen from "../../../components/map/map";
 import { RiderHomeSkeleton } from "../../../components/skelentonAnimation/riderHomeSkelento";
-import { useMyRides } from "../../../hooks/queries/useMyRides";
+import { useUpcomingRides } from "../../../hooks/queries/useMyRides";
 import UpcomingRideCard from "../../../components/cards/upcomingRidesCard";
 import { useRideStore } from "../../../store/useRideStore";
 import GoogleInput from "../../../components/inputs/googleInput";
@@ -53,7 +53,7 @@ const RiderHomeScreen = () => {
     data: upcomingData,
     isLoading: loadingUpcoming,
     refetch: refetchUpcomingRides,
-  } = useMyRides();
+  } = useUpcomingRides();
   const { colors, theme } = useTheme();
   const commonStyling = commonStyles(colors);
   const [refreshing, setRefreshing] = useState(false);

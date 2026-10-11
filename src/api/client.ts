@@ -6,7 +6,7 @@ import axios, {
 import { API_CONFIG } from "../utils/constants";
 import { storage } from "../utils/storage";
 import { ErrorResponse } from "../types/auth.types";
-import { useUserStore } from "../store/userStore";
+import { signOut } from "../utils/signOut";
 import { navigateAndReset } from "../utils/navigationRef";
 import Toast from "react-native-toast-message";
 
@@ -61,6 +61,59 @@ const requiresOtpVerification = (error: AxiosError<ErrorResponse>) => {
     details?.otp_verified === false &&
     !!details?.user_id
   );
+};
+
+type RefreshOutcome =
+  | { ok: true; accessToken: string }
+  | { ok: false; sessionInvalid: boolean };
+
+// Every request that gets a 401 at the same moment shares ONE refresh call.
+// The server rotates the refresh token on each use, so two parallel refreshes
+// would make the second one fail and log the user out.
+let refreshInFlight: Promise<RefreshOutcome> | null = null;
+
+const refreshAccessToken = (): Promise<RefreshOutcome> => {
+  if (refreshInFlight) {
+    return refreshInFlight;
+  }
+
+  refreshInFlight = (async (): Promise<RefreshOutcome> => {
+    try {
+      const refreshToken = await storage.getRefreshToken();
+      if (!refreshToken) {
+        return { ok: false, sessionInvalid: true };
+      }
+
+      // A clean axios call, so the interceptors below are not involved.
+      const response = await axios.post(
+        `${API_CONFIG.BASE_URL}/auth/refresh`,
+        { refresh_token: refreshToken },
+        { timeout: 15000 },
+      );
+
+      const tokens = response.data?.data;
+      const newAccessToken: string | undefined = tokens?.access_token;
+      if (!newAccessToken) {
+        return { ok: false, sessionInvalid: true };
+      }
+
+      await storage.setToken(newAccessToken);
+      if (tokens?.refresh_token) {
+        await storage.setRefreshToken(tokens.refresh_token);
+      }
+
+      return { ok: true, accessToken: newAccessToken };
+    } catch (error) {
+      const status = (error as AxiosError)?.response?.status;
+      // Only a clear "this token is no good" answer ends the session. A bad
+      // connection or a server hiccup must not log anyone out.
+      return { ok: false, sessionInvalid: status === 401 || status === 403 };
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+
+  return refreshInFlight;
 };
 
 // Request interceptor with detailed logging
@@ -142,48 +195,27 @@ apiClient.interceptors.response.use(
     ) {
       originalRequest._retry = true;
 
-      try {
-        console.log("🔑 Access token expired. Attempting refresh...");
+      const outcome = await refreshAccessToken();
 
-        // 1. Pull the stored refresh token
-        const refreshToken = await storage.getRefreshToken();
-
-        if (!refreshToken) {
-          throw new Error("No refresh token stored");
-        }
-
-        // 2. Call the refresh endpoint
-        // Use a clean axios instance to avoid interceptor interference
-        const response = await axios.post<string>(
-          `${API_CONFIG.BASE_URL}/token/refresh`,
-          { refresh_token: refreshToken },
-        );
-
-        const newAccessToken = response.data;
-
-        // 3. Save the new token to storage
-        await storage.setToken(newAccessToken);
-
-        // 4. Update the header and retry the original request
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-
-        console.log("✅ Token refreshed. Retrying original request...");
+      if (outcome.ok) {
+        originalRequest.headers.Authorization = `Bearer ${outcome.accessToken}`;
         return apiClient(originalRequest);
-      } catch (refreshError) {
-        console.error("❌ Token refresh failed:", refreshError);
+      }
 
-        // If refresh fails, we must log out
-        const logout = useUserStore.getState().logout;
-        await logout();
+      if (outcome.sessionInvalid) {
+        // The refresh token is missing, expired or revoked: sign out for real.
+        await signOut({ callServer: false });
         navigateAndReset("Auth", { screen: "Login" });
 
         if (!hasShownSessionExpiredAlert) {
           hasShownSessionExpiredAlert = true;
           showErrorToast(SESSION_EXPIRED_MESSAGE);
         }
-
-        return Promise.reject(refreshError);
       }
+
+      // Otherwise it was only a connection problem: keep the user signed in
+      // and let this one request fail.
+      return Promise.reject(error);
     }
 
     // Handle other errors as usual
