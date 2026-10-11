@@ -35,13 +35,6 @@ const HelpCenter = () => {
 
   const topics = [
     {
-      id: 1,
-      title: "Earnings & Payments",
-      articles: 12,
-      icon: <DollarSign size={22} color={colors.primaryColor} />,
-      bg: "#EFF6FF",
-    },
-    {
       id: 2,
       title: "Accepting & Completing Rides",
       articles: 8,
@@ -79,7 +72,6 @@ const HelpCenter = () => {
   ];
 
   const popularArticles = [
-    { title: "How do I get paid?", category: "Earnings" },
     { title: "What to do if a rider cancels?", category: "Rides" },
     { title: "Updating my vehicle information", category: "Account" },
     { title: "Understanding the rating system", category: "Rides" },

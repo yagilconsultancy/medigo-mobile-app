@@ -176,6 +176,10 @@ const LocationDetailsScreen = () => {
                   address: location?.address,
                   locationName: location?.label,
                   locationType: location?.location_type,
+                  latitude: location?.latitude,
+                  longitude: location?.longitude,
+                  placeId: location?.place_id,
+                  isDefault: location?.is_default,
                 },
               });
               setshowOptions(false);

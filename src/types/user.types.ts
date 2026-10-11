@@ -228,7 +228,12 @@ export interface DriverDocument {
   id: string;
   document_type: string;
   file_name: string;
-  verification_status: "pending" | "verified" | "rejected";
+  // Backend sets "pending" on upload and "approved"/"rejected" on admin review
+  // ("verified" is tolerated for older rows).
+  verification_status: "pending" | "approved" | "verified" | "rejected" | string;
+  rejection_reason?: string | null;
+  // Not returned by GET /users/me/documents today; used when present.
+  expires_at?: string | null;
   created_at: string;
 }
 

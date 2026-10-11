@@ -1,5 +1,7 @@
 import { io, Socket } from "socket.io-client";
+import { SOCKET_BASE_URL } from "../utils/constants";
 import * as Location from "expo-location";
+import { storage } from "../utils/storage";
 
 class LocationTrackingService {
   private socket: Socket | null = null;
@@ -11,15 +13,22 @@ class LocationTrackingService {
   connect(
     jwtToken: string,
     onConnected?: () => void,
-    backendUrl: string = "https://staging.getmedigo.com",
+    backendUrl: string = SOCKET_BASE_URL,
   ) {
     if (this.socket?.connected) return;
 
-    this.socket = io("https://staging.getmedigo.com/tracking", {
+    this.socket = io(`${backendUrl}/tracking`, {
       // URL + Namespace
       path: "/api/v1/ws/socket.io", // Matches documentation exactly
       transports: ["websocket", "polling"],
-      auth: { token: jwtToken },
+      // Read the token on every (re)connect so a refreshed access token is
+      // used instead of the one captured when the socket was first created.
+      auth: (cb: (data: { token: string }) => void) => {
+        storage
+          .getToken()
+          .then((stored) => cb({ token: stored || jwtToken }))
+          .catch(() => cb({ token: jwtToken }));
+      },
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000, // Added based on docs

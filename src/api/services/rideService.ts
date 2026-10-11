@@ -24,6 +24,17 @@ const rideService = {
     return response.data;
   },
 
+  getRiderHistoryOverview: async (params: {
+    status?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<any> => {
+    const response = await apiClient.get("/rides/rider/me/overview", {
+      params,
+    });
+    return response.data;
+  },
+
   createRide: async (payload: any): Promise<any> => {
     const response: AxiosResponse<any> = await apiClient.post(
       "/rides/",
@@ -38,6 +49,17 @@ const rideService = {
   ): Promise<UpcomingRidesResponse> => {
     const response = await apiClient.get("/rides/driver/upcoming", {
       params: { page, limit },
+    });
+    return response.data;
+  },
+
+  getDriverTrips: async (
+    status: "upcoming" | "completed" | "cancelled",
+    page = 1,
+    limit = 50,
+  ): Promise<UpcomingRidesResponse> => {
+    const response = await apiClient.get("/rides/driver/trips", {
+      params: { status, page, limit },
     });
     return response.data;
   },
@@ -62,6 +84,32 @@ const rideService = {
     payload: CancelRidePayload,
   ): Promise<RideDetailResponse> => {
     const response = await apiClient.put(`/rides/${rideId}/cancel`, payload);
+    return response.data;
+  },
+
+  getMyRatings: async (): Promise<any> => {
+    const response = await apiClient.get("/rides/driver/ratings");
+    return response.data;
+  },
+
+  getDriverStats: async (): Promise<any> => {
+    const response = await apiClient.get("/rides/driver/stats");
+    return response.data;
+  },
+
+  getDriverContact: async (rideId: string): Promise<any> => {
+    const response = await apiClient.get(`/rides/${rideId}/driver-contact`);
+    return response.data;
+  },
+
+  submitDriverRating: async (
+    rideId: string,
+    payload: { rating: number; comment?: string },
+  ): Promise<any> => {
+    const response = await apiClient.post(`/rides/${rideId}/rating`, {
+      ...payload,
+      rating_type: "rider_to_driver",
+    });
     return response.data;
   },
 

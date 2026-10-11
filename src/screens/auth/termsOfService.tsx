@@ -583,7 +583,7 @@ const TermsOfServiceScreen = () => {
                 },
               ]}
             >
-              Email: privacy@medigo.com
+              Email: info@getmedigo.com
             </Text>
             <Text
               style={[

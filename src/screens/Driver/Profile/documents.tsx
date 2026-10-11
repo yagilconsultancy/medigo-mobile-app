@@ -7,7 +7,12 @@ import {
   ScrollView,
   StatusBar,
 } from "react-native";
-import { AlertCircle, ChevronRight, CheckCircle2 } from "lucide-react-native";
+import {
+  AlertCircle,
+  ChevronRight,
+  CheckCircle2,
+  FileText,
+} from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import useTheme from "../../../hooks/useThemes";
 import { commonStyles } from "../../../styles/commonStyles";
@@ -17,6 +22,52 @@ import Header from "../../../components/reuseables/header";
 import { useDriverDocuments } from "../../../hooks/queries/userDriverDocuments";
 import { DocumentsSkeleton } from "../../../components/skelentonAnimation/documentsSkelenton";
 
+const DOC_TITLES: Record<string, string> = {
+  government_id_front: "Government ID (Front)",
+  government_id_back: "Government ID (Back)",
+  drivers_license_front: "Driver's License (Front)",
+  drivers_license_back: "Driver's License (Back)",
+  drivers_license: "Driver's License",
+  vehicle_insurance: "Vehicle Insurance",
+  vehicle_registration: "Vehicle Registration",
+  medical_transport_certification: "Medical Transport Certification",
+};
+
+const docTitle = (type: string) =>
+  DOC_TITLES[type] ||
+  (type || "Document")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+type DocStatus = "VERIFIED" | "PENDING" | "REJECTED";
+
+const docStatus = (raw?: string): DocStatus => {
+  const v = (raw || "").toLowerCase();
+  if (v === "approved" || v === "verified") return "VERIFIED";
+  if (v === "rejected") return "REJECTED";
+  return "PENDING";
+};
+
+const formatDocDate = (iso?: string | null) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return isNaN(d.getTime())
+    ? ""
+    : d.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+};
+
+// Whole days from now until the expiry date, or null when there is no date.
+const daysUntil = (iso?: string | null): number | null => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+};
+
 const DocumentsScreen = () => {
   const { colors, theme } = useTheme();
   const commonStyling = commonStyles(colors);
@@ -24,6 +75,27 @@ const DocumentsScreen = () => {
 
   const { data, isLoading, refetch } = useDriverDocuments();
   const documents = data?.data || [];
+
+  // Banner only when real data says something needs attention.
+  const expiring = documents
+    .map((d) => ({ d, days: daysUntil(d.expires_at) }))
+    .filter((x) => x.days !== null && x.days <= 30)
+    .sort((a, b) => (a.days as number) - (b.days as number))[0];
+  const rejectedCount = documents.filter(
+    (d) => docStatus(d.verification_status) === "REJECTED",
+  ).length;
+  let bannerText = "";
+  if (expiring) {
+    const days = expiring.days as number;
+    bannerText =
+      days < 0
+        ? `${docTitle(expiring.d.document_type)} has expired.`
+        : days === 0
+          ? `${docTitle(expiring.d.document_type)} expires today.`
+          : `${docTitle(expiring.d.document_type)} expires in ${days} day${days === 1 ? "" : "s"}.`;
+  } else if (rejectedCount > 0) {
+    bannerText = `${rejectedCount} document${rejectedCount === 1 ? " was" : "s were"} rejected. Please contact support to resubmit.`;
+  }
 
   if (isLoading) {
     return <DocumentsSkeleton />;
@@ -48,28 +120,18 @@ const DocumentsScreen = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Action Required Banner */}
-        <View style={styles.warningBanner}>
-          <View style={styles.warningHeader}>
-            <View style={styles.warningTitleGroup}>
-              <AlertCircle size={18} color="#B45309" />
-              <Text style={styles.warningTitle}>Action Required</Text>
+        {/* Action Required Banner (only when real data needs attention) */}
+        {bannerText !== "" && (
+          <View style={styles.warningBanner}>
+            <View style={styles.warningHeader}>
+              <View style={styles.warningTitleGroup}>
+                <AlertCircle size={18} color="#B45309" />
+                <Text style={styles.warningTitle}>Action Required</Text>
+              </View>
             </View>
-            <TouchableOpacity
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-              }}
-            >
-              <Text style={styles.renewLink}>Renew Now</Text>
-              <ChevronRight size={14} color="#B45309" />
-            </TouchableOpacity>
+            <Text style={styles.warningText}>{bannerText}</Text>
           </View>
-          <Text style={styles.warningText}>
-            Auto Insurance expires in 12 days. Renew to avoid service
-            interruption.
-          </Text>
-        </View>
+        )}
 
         <Text
           style={[
@@ -101,7 +163,11 @@ const DocumentsScreen = () => {
           </Text>
         ) : (
           <View>
-            {documents.map((doc) => (
+            {documents.map((doc) => {
+              const status = docStatus(doc.verification_status);
+              const expiryText = formatDocDate(doc.expires_at);
+              const uploadedText = formatDocDate(doc.created_at);
+              return (
               <TouchableOpacity
                 key={doc.id}
                 style={[
@@ -111,8 +177,29 @@ const DocumentsScreen = () => {
                   },
                 ]}
               >
-                <View style={[styles.docIcon, { backgroundColor: doc.iconBg }]}>
-                  {doc.icon}
+                <View
+                  style={[
+                    styles.docIcon,
+                    {
+                      backgroundColor:
+                        status === "VERIFIED"
+                          ? "#ECFDF5"
+                          : status === "REJECTED"
+                            ? "#FEF2F2"
+                            : "#EFF6FF",
+                    },
+                  ]}
+                >
+                  <FileText
+                    size={20}
+                    color={
+                      status === "VERIFIED"
+                        ? "#10B981"
+                        : status === "REJECTED"
+                          ? "#EF4444"
+                          : "#3B82F6"
+                    }
+                  />
                 </View>
                 <View style={styles.docInfo}>
                   <View style={styles.docHeaderRow}>
@@ -125,29 +212,29 @@ const DocumentsScreen = () => {
                         },
                       ]}
                     >
-                      {doc.title}
+                      {docTitle(doc.document_type)}
                     </Text>
                     <View
                       style={[
                         styles.statusBadge,
-                        doc.status === "VERIFIED"
+                        status === "VERIFIED"
                           ? styles.statusVerified
-                          : doc.status === "PENDING"
+                          : status === "PENDING"
                             ? styles.statusPending
-                            : styles.statusExpiring,
+                            : styles.statusRejected,
                       ]}
                     >
                       <Text
                         style={[
                           styles.statusText,
-                          doc.status === "VERIFIED"
+                          status === "VERIFIED"
                             ? { color: "#10B981" }
-                            : doc.status === "PENDING"
+                            : status === "PENDING"
                               ? { color: "#3B82F6" }
-                              : { color: "#F59E0B" },
+                              : { color: "#EF4444" },
                         ]}
                       >
-                        {doc.status}
+                        {status}
                       </Text>
                     </View>
                   </View>
@@ -160,34 +247,42 @@ const DocumentsScreen = () => {
                         fontFamily: "Medium",
                       },
                     ]}
+                    numberOfLines={1}
                   >
-                    {doc.sub}
+                    {status === "REJECTED" && doc.rejection_reason
+                      ? doc.rejection_reason
+                      : doc.file_name}
                   </Text>
-                  <Text
-                    style={[
-                      commonStyling.title,
-                      {
-                        fontSize: 12,
-                      },
-                    ]}
-                  >
-                    Expires {doc.expiry}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.docMetaSmall,
-                      commonStyling.subtitle,
-                      {
-                        fontSize: 11,
-                      },
-                    ]}
-                  >
-                    Uploaded {doc.uploaded}
-                  </Text>
+                  {expiryText !== "" && (
+                    <Text
+                      style={[
+                        commonStyling.title,
+                        {
+                          fontSize: 12,
+                        },
+                      ]}
+                    >
+                      Expires {expiryText}
+                    </Text>
+                  )}
+                  {uploadedText !== "" && (
+                    <Text
+                      style={[
+                        styles.docMetaSmall,
+                        commonStyling.subtitle,
+                        {
+                          fontSize: 11,
+                        },
+                      ]}
+                    >
+                      Uploaded {uploadedText}
+                    </Text>
+                  )}
                 </View>
                 <ChevronRight size={18} color="#CBD5E1" />
               </TouchableOpacity>
-            ))}
+              );
+            })}
           </View>
         )}
 
@@ -317,6 +412,7 @@ const styles = StyleSheet.create({
   statusVerified: { backgroundColor: "#ECFDF5" },
   statusPending: { backgroundColor: "#EFF6FF" },
   statusExpiring: { backgroundColor: "#FFFBEB" },
+  statusRejected: { backgroundColor: "#FEF2F2" },
   statusText: { fontSize: 10, fontWeight: "900" },
 
   uploadBox: {

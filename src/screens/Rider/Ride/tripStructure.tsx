@@ -65,6 +65,8 @@ function TripStructure({
   setassistance,
   additionalNotes,
   setadditionalNotes,
+  pickupError,
+  destinationError,
 }: any) {
   const { colors } = useTheme();
   const commonStyling = commonStyles(colors);
@@ -344,6 +346,11 @@ function TripStructure({
           loading={loadingPickup}
           setLoading={setloadingPickup}
         />
+        {pickupError ? (
+          <Text style={{ color: colors.red, fontSize: 12, marginTop: -8 }}>
+            {pickupError}
+          </Text>
+        ) : null}
 
         <Text
           style={[
@@ -370,6 +377,11 @@ function TripStructure({
           loading={loadingDestination}
           setLoading={setloadingDestination}
         />
+        {destinationError ? (
+          <Text style={{ color: colors.red, fontSize: 12, marginTop: -8 }}>
+            {destinationError}
+          </Text>
+        ) : null}
       </View>
 
       {/* Date & Time Section */}

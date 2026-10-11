@@ -53,12 +53,17 @@ export const useUpdateRideStatus = () => {
         `✅ Ride ${variables.rideId} status moved to: ${variables.payload.status}`,
       );
 
-      // Invalidate active ride data caches to trigger screen UI updates automatically
+      // Refresh every screen that shows this ride, for the driver and rider.
+      queryClient.invalidateQueries({ queryKey: ["activeRide"] });
       queryClient.invalidateQueries({
-        queryKey: ["active-ride", variables.rideId],
+        queryKey: ["ride-detail", variables.rideId],
       });
-      queryClient.invalidateQueries({ queryKey: ["rides-history"] });
       queryClient.invalidateQueries({ queryKey: ["rideTimeline"] });
+      queryClient.invalidateQueries({ queryKey: ["upcoming-rides"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-trips"] });
+      queryClient.invalidateQueries({ queryKey: ["my-rides"] });
+      queryClient.invalidateQueries({ queryKey: ["rides-history"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-stats"] });
     },
     onError: (error) => {
       console.error("❌ Failed to transition ride status:", error);
@@ -78,9 +83,15 @@ export const useCancelRide = (rideId: string) => {
     mutationFn: (payload: CancelRidePayload) =>
       rideService.cancelRide(rideId, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["my-rides"],
-      });
+      // Refresh every screen that shows this ride so a cancelled ride does not
+      // keep its old status or its Cancel button.
+      queryClient.invalidateQueries({ queryKey: ["my-rides"] });
+      queryClient.invalidateQueries({ queryKey: ["ride-detail", rideId] });
+      queryClient.invalidateQueries({ queryKey: ["rideTimeline"] });
+      queryClient.invalidateQueries({ queryKey: ["activeRide"] });
+      queryClient.invalidateQueries({ queryKey: ["upcoming-rides"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-trips"] });
+      queryClient.invalidateQueries({ queryKey: ["rides-history"] });
     },
     onError: (error: any) => {},
   });
@@ -131,6 +142,26 @@ export const useShareRide = () => {
         "Failed to generate share link. Please try again.";
 
       Alert.alert("Error", errorMessage);
+    },
+  });
+};
+
+export const useSubmitDriverRating = (rideId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: { rating: number; comment?: string }) =>
+      rideService.submitDriverRating(rideId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ride-detail", rideId] });
+    },
+    onError: (error: any) => {
+      const detail = error?.response?.data?.detail;
+      const message =
+        (typeof detail === "string" ? detail : detail?.[0]?.msg) ||
+        error?.response?.data?.message ||
+        "Could not submit your rating. Please try again.";
+      Alert.alert("Rating not sent", message);
     },
   });
 };

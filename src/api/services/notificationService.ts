@@ -4,6 +4,7 @@ import {
   ChatListResponse,
   GetNotificationsParams,
   NotificationsResponse,
+  UnreadCountResponse,
 } from "../../types/notifications.types";
 
 const notificationService = {
@@ -15,6 +16,21 @@ const notificationService = {
       { params },
     );
     return response.data;
+  },
+
+  getUnreadCount: async (): Promise<UnreadCountResponse> => {
+    const response: AxiosResponse<UnreadCountResponse> = await apiClient.get(
+      "/notifications/inbox/unread-count",
+    );
+    return response.data;
+  },
+
+  markAsRead: async (notificationId: string): Promise<void> => {
+    await apiClient.put(`/notifications/inbox/${notificationId}/read`);
+  },
+
+  markAllAsRead: async (): Promise<void> => {
+    await apiClient.put("/notifications/inbox/read-all");
   },
 
   getConversations: async (

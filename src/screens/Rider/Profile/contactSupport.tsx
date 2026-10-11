@@ -25,7 +25,7 @@ const LiveChatScreen = () => {
           mediaPlaybackRequiresUserAction={false}
           setSupportMultipleWindows={false}
           startInLoadingState={true}
-          originWhitelist={["*"]}
+          originWhitelist={["https://*.tawk.to", "https://tawk.to"]}
           renderLoading={() => (
             <View style={styles.loadingContainer}>
               <LoadingSpinner color={colors.krGreen} />

@@ -16,8 +16,11 @@ export const API_CONFIG = {
   TIMEOUT: 60000,
 } as const;
 
+// Socket.IO lives on the same host as the REST API.
+export const SOCKET_BASE_URL = API_CONFIG.BASE_URL.replace(/\/api\/v1\/?$/, "");
+
 export const WEB_CONFIG = {
-  PORTFOLIO_BASE_URL: "https://medigo-portfolio.vercel.app",
+  SITE_BASE_URL: "https://getmedigo.com",
 } as const;
 
 export const RIDE_CONFIG = {

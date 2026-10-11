@@ -6,11 +6,12 @@ import {
   TouchableOpacity,
   ScrollView,
   StatusBar,
+  Alert,
 } from "react-native";
+import Toast from "react-native-toast-message";
 import {
   X,
   Car,
-  MapPin,
   Calendar,
   Clock,
   User,
@@ -30,6 +31,26 @@ import { formatDateReadable } from "../../../utils/formatDate";
 import { formatPrice } from "../../../utils/formatPrice";
 import { formatDisplayText } from "../../../utils/formatText";
 import RideRouteCard from "../../../components/map/rideRouteCard";
+import { useCancelRide } from "../../../hooks/mutations/useRide";
+import { useDriverContact } from "../../../hooks/queries/useDriverContact";
+import { usePaymentReceipt } from "../../../hooks/queries/usePaymentReceipt";
+
+// Backend RideStatus values (lowercase snake_case).
+const DRIVER_STATUSES = [
+  "driver_assigned",
+  "driver_en_route",
+  "driver_arrived",
+  "in_progress",
+];
+const CANCELLABLE_STATUSES = [
+  "pending",
+  "requested",
+  "pending_business_assignment",
+  "confirmed",
+  "driver_assigned",
+  "driver_en_route",
+  "driver_arrived",
+];
 
 const RideStatusScreen = () => {
   const { colors, theme } = useTheme();
@@ -41,7 +62,140 @@ const RideStatusScreen = () => {
 
   const { data: rideDetails, isLoading: loadingRideDetail } =
     useRideDetail(rideId);
-  const rideDetail = rideDetails?.data;
+  const rideDetail: any = rideDetails?.data;
+  const status: string = rideDetail?.status ?? "";
+
+  const hasDriverCard = DRIVER_STATUSES.includes(status) && !!rideDetail?.driver_id;
+  const canTrack = hasDriverCard;
+  const canCancel = CANCELLABLE_STATUSES.includes(status);
+
+  const { data: driverContact } = useDriverContact(rideId, hasDriverCard);
+  const driver: any = driverContact?.data;
+  const driverName = driver
+    ? `${driver.first_name ?? ""} ${driver.last_name ?? ""}`.trim()
+    : "";
+  const vehicleText = driver
+    ? [driver.vehicle_color, driver.vehicle_make, driver.vehicle_model]
+        .filter(Boolean)
+        .join(" ") + (driver.vehicle_plate ? ` - ${driver.vehicle_plate}` : "")
+    : "";
+  // Backend returns null for drivers with no ratings yet.
+  const driverRating: number | null =
+    typeof driver?.rating === "number" ? driver.rating : null;
+
+  const { data: paymentReceipt } = usePaymentReceipt(rideId);
+  const paymentStatus: string =
+    paymentReceipt?.data?.payment_status ?? "not_recorded";
+  const paymentBadges: Record<
+    string,
+    { label: string; bg: string; fg: string }
+  > = {
+    paid: { label: "Payment confirmed", bg: "#F0FDF4", fg: "#047857" },
+    pending: { label: "Payment pending", bg: "#FEF3C7", fg: "#92400E" },
+    failed: { label: "Payment failed", bg: "#FEE2E2", fg: "#B91C1C" },
+    refunded: { label: "Payment refunded", bg: "#E0F2FE", fg: "#0369A1" },
+  };
+  const paymentBadge = paymentBadges[paymentStatus];
+  const fareAmount: number | null =
+    rideDetail?.final_fare ?? rideDetail?.estimated_fare ?? null;
+
+  const banner = (() => {
+    switch (status) {
+      case "driver_assigned":
+        return { label: "Driver assigned", bg: colors.lightGreen, fg: colors.darkGreen };
+      case "driver_en_route":
+        return { label: "Driver is on the way", bg: colors.lightGreen, fg: colors.darkGreen };
+      case "driver_arrived":
+        return { label: "Driver has arrived", bg: colors.lightGreen, fg: colors.darkGreen };
+      case "in_progress":
+        return { label: "Ride in progress", bg: colors.lightGreen, fg: colors.darkGreen };
+      case "completed":
+        return { label: "Ride completed", bg: colors.lightGreen, fg: colors.darkGreen };
+      case "cancelled":
+        return { label: "Ride cancelled", bg: colors.highlightRed, fg: colors.highlightRed150 };
+      case "no_show":
+        return { label: "Marked as no-show", bg: colors.highlightRed, fg: colors.highlightRed150 };
+      case "confirmed":
+        return { label: "Request confirmed. Finding your driver", bg: colors.lightYellow, fg: colors.darkYellow };
+      default:
+        return {
+          label: "Awaiting request approval and confirmation",
+          bg: colors.lightYellow,
+          fg: colors.darkYellow,
+        };
+    }
+  })();
+
+  const { mutate: cancelRide, isPending: isCancelling } =
+    useCancelRide(rideId);
+
+  const handleCancelPress = () => {
+    if (isCancelling) return;
+    Alert.alert(
+      "Cancel this ride?",
+      "Are you sure you want to cancel this ride?",
+      [
+        { text: "Keep Ride", style: "cancel" },
+        {
+          text: "Cancel Ride",
+          style: "destructive",
+          onPress: () =>
+            cancelRide(
+              { reason: "Cancelled by rider" },
+              {
+                onSuccess: () => {
+                  Toast.show({
+                    type: "tripToast",
+                    text1: "Ride cancelled",
+                    text2: "Your ride has been cancelled.",
+                  });
+                  navigation.navigate("RiderMainTabs");
+                },
+                onError: (error: any) => {
+                  const detail = error?.response?.data?.detail;
+                  Toast.show({
+                    type: "errorToast",
+                    text1: "Could not cancel ride",
+                    text2:
+                      (typeof detail === "string"
+                        ? detail
+                        : detail?.[0]?.msg) ||
+                      error?.response?.data?.message ||
+                      "Please try again.",
+                  });
+                },
+              },
+            ),
+        },
+      ],
+    );
+  };
+
+  const handleTrack = () => {
+    if (!canTrack || !rideDetail?.id) {
+      Alert.alert(
+        "Tracking unavailable",
+        "Live tracking is available once a driver is assigned.",
+      );
+      return;
+    }
+    navigation.navigate("RiderRideDetailsStack", {
+      screen: "TripInProgress",
+      params: {
+        role: "rider",
+        activeRide: {
+          ...rideDetail,
+          driver_name: driverName || null,
+          driver_phone: driver?.phone ?? null,
+          driver_avatar_url: driver?.avatar_url ?? null,
+          driver_rating: driverRating,
+          driver_vehicle_make: driver?.vehicle_make ?? null,
+          driver_vehicle_type: driver?.vehicle_type ?? null,
+          driver_vehicle_model: driver?.vehicle_model ?? null,
+        },
+      },
+    });
+  };
 
   if (loadingRideDetail) {
     return <RideStatusSkeleton />;
@@ -86,66 +240,29 @@ const RideStatusScreen = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Awaiting Approval Banner */}
-
-        {rideDetail?.status === "driver assigned" ? (
-          <View
-            style={[
-              styles.awaitingBanner,
-              {
-                backgroundColor: colors.lightGreen,
-                marginBottom: 60,
-              },
-            ]}
+        {/* Status Banner */}
+        <View
+          style={[
+            styles.awaitingBanner,
+            {
+              backgroundColor: banner.bg,
+              marginBottom: hasDriverCard ? 60 : 24,
+            },
+          ]}
+        >
+          <View style={[styles.orangeDot, { backgroundColor: banner.fg }]} />
+          <Text
+            style={{
+              color: banner.fg,
+              fontSize: 13,
+              fontFamily: "SemiBold",
+            }}
           >
-            <View
-              style={[
-                styles.orangeDot,
-                {
-                  backgroundColor: colors.darkGreen,
-                },
-              ]}
-            />
-            <Text
-              style={{
-                color: colors.darkGreen,
-                fontSize: 13,
-                fontFamily: "SemiBold",
-              }}
-            >
-              Driver assigned
-            </Text>
-          </View>
-        ) : (
-          <View
-            style={[
-              styles.awaitingBanner,
-              {
-                backgroundColor: colors.lightYellow,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.orangeDot,
-                {
-                  backgroundColor: colors.darkYellow,
-                },
-              ]}
-            />
-            <Text
-              style={{
-                color: colors.darkYellow,
-                fontSize: 13,
-                fontFamily: "SemiBold",
-              }}
-            >
-              Awaiting request approval and confirmation
-            </Text>
-          </View>
-        )}
+            {banner.label}
+          </Text>
+        </View>
 
-        {rideDetail?.status === "driver assigned" && (
+        {hasDriverCard && (
           <View
             style={[
               styles.trackingCard,
@@ -154,115 +271,70 @@ const RideStatusScreen = () => {
               },
             ]}
           >
-            {/* Arriving Floating Badge */}
+            {/* Driver status badge */}
             <View style={styles.arrivingBadge}>
               <Navigation2 size={16} color="#FFF" fill="#FFF" />
-              <Text style={styles.arrivingText}>Arriving in 0 min</Text>
+              <Text style={styles.arrivingText}>{banner.label}</Text>
               <View style={styles.whitePulseDot} />
             </View>
 
-            {/* Tracking Progress Visual */}
-            <View style={styles.trackingVisualContainer}>
-              <View style={styles.visualRow}>
-                <Car size={32} color={colors.titleText} />
-                <View style={styles.progressBarBase}>
-                  <View style={styles.progressBarActive} />
-                  <View style={styles.progressCenterDot} />
-                </View>
-                <View>
-                  <MapPin size={24} color="#EF4444" fill="#EF4444" />
-                </View>
-              </View>
-              <View style={styles.visualLabels}>
-                <View>
-                  <Text
-                    style={[
-                      commonStyling.title,
-                      {
-                        fontSize: 13,
-                        fontFamily: "Bold",
-                      },
-                    ]}
-                  >
-                    Driver
-                  </Text>
-                  <Text
-                    style={[
-                      styles.visualSubLabel,
-                      commonStyling.subtitle,
-                      {
-                        fontSize: 11,
-                      },
-                    ]}
-                  >
-                    2.3 mi away
-                  </Text>
-                </View>
-                <View style={{ alignItems: "flex-end" }}>
-                  <Text
-                    style={[
-                      {
-                        fontSize: 13,
-                        fontFamily: "Bold",
-                        color: "#EF4444",
-                      },
-                    ]}
-                  >
-                    Pickup
-                  </Text>
-                  <Text
-                    style={[
-                      styles.visualSubLabel,
-                      commonStyling.subtitle,
-                      {
-                        fontSize: 11,
-                      },
-                    ]}
-                  >
-                    Your location
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Driver Info Footer */}
+            {/* Driver Info */}
             <View
               style={[
                 styles.driverFooter,
                 {
                   backgroundColor: colors.cardBackground,
+                  marginTop: 20,
                 },
               ]}
             >
-              <View style={styles.driverNameRow}>
-                <View
-                  style={[
-                    styles.orangeDot,
-                    { width: 8, height: 8, backgroundColor: colors.green },
-                  ]}
-                />
+              <View style={{ flex: 1 }}>
+                <View style={styles.driverNameRow}>
+                  <View
+                    style={[
+                      styles.orangeDot,
+                      { width: 8, height: 8, backgroundColor: colors.green },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      commonStyling.title,
+                      {
+                        fontSize: 13,
+                        fontFamily: "SemiBold",
+                      },
+                    ]}
+                  >
+                    {driverName
+                      ? `${driverName} is your driver`
+                      : "Your driver details are loading"}
+                  </Text>
+                </View>
+                {vehicleText ? (
+                  <Text
+                    style={[
+                      commonStyling.subtitle,
+                      {
+                        fontSize: 12,
+                        marginTop: 4,
+                      },
+                    ]}
+                  >
+                    {vehicleText}
+                  </Text>
+                ) : null}
+              </View>
+              {driverRating != null && (
                 <Text
                   style={[
                     commonStyling.title,
-                    {
-                      fontSize: 13,
-                      fontFamily: "SemiBold",
-                    },
+                    { fontSize: 13, fontFamily: "SemiBold" },
                   ]}
                 >
-                  Michael Johnson is on the way
+                  {"\u2605 "}
+                  {Number(driverRating).toFixed(1)}
                 </Text>
-              </View>
-              <Text
-                style={[
-                  commonStyling.subtitle,
-                  {
-                    fontSize: 12,
-                  },
-                ]}
-              >
-                Toyota
-              </Text>
+              )}
             </View>
           </View>
         )}
@@ -492,40 +564,53 @@ const RideStatusScreen = () => {
                 },
               ]}
             >
-              Total paid
+              {paymentStatus === "paid" ? "Total paid" : "Total fare"}
             </Text>
             <Text
               style={{
-                color: "#10B981",
+                color: paymentStatus === "paid" ? "#10B981" : colors.titleText,
                 fontSize: 24,
                 fontFamily: "Bold",
               }}
             >
-              {formatPrice(rideDetail?.estimated_fare)}
+              {fareAmount != null ? formatPrice(fareAmount) : "--"}
             </Text>
           </View>
 
-          <View style={styles.paymentConfirmedBadge}>
-            <Check size={14} color="#10B981" strokeWidth={3} />
-            <Text style={styles.confirmedText}>Payment confirmed</Text>
-          </View>
+          {paymentBadge && (
+            <View
+              style={[
+                styles.paymentConfirmedBadge,
+                { backgroundColor: paymentBadge.bg },
+              ]}
+            >
+              {paymentStatus === "paid" && (
+                <Check size={14} color={paymentBadge.fg} strokeWidth={3} />
+              )}
+              <Text style={[styles.confirmedText, { color: paymentBadge.fg }]}>
+                {paymentBadge.label}
+              </Text>
+            </View>
+          )}
         </View>
 
-        {rideDetail?.status === "driver assigned" && (
+        {(canTrack || canCancel) && (
           <View
             style={{
               gap: 12,
             }}
           >
-            <Buttons
-              title="Track Live Location"
-              onPress={() => {
-                navigation.navigate("RiderRideDetailsStack", {
-                  screen: "TripInProgress",
-                });
-              }}
-            />
-            <Buttons type="cancel" title="Cancel Ride" onPress={() => {}} />
+            {canTrack && (
+              <Buttons title="Track Live Location" onPress={handleTrack} />
+            )}
+            {canCancel && (
+              <Buttons
+                type="cancel"
+                title="Cancel Ride"
+                loading={isCancelling}
+                onPress={handleCancelPress}
+              />
+            )}
           </View>
         )}
       </ScrollView>

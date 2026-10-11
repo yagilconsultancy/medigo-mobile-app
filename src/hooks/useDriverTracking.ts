@@ -67,8 +67,8 @@ export const useDriverTracking = (
 
     // 3. Setup global life cycle listeners just for visibility
     // @ts-ignore
-    RideTrackingService.socket?.on("tracking_started", (data) => {
-      console.log("🚀 Backend tracking session initialized:", data);
+    RideTrackingService.socket?.on("tracking_started", () => {
+      // Session started on the server; nothing to do client-side.
     });
 
     return () => {

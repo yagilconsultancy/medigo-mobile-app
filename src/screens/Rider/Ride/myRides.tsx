@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from "react";
+import UnreadDot from "../../../components/reuseables/unreadDot";
 import {
   StyleSheet,
   View,
@@ -16,7 +17,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import useTheme from "../../../hooks/useThemes";
 import { commonStyles } from "../../../styles/commonStyles";
 import Header from "../../../components/reuseables/header";
-import { useMyRides } from "../../../hooks/queries/useMyRides";
+import { useUpcomingRides } from "../../../hooks/queries/useMyRides";
 import { MyRidesSkeleton } from "../../../components/skelentonAnimation/myRidesSkelenton";
 import UpcomingRideCard from "../../../components/cards/upcomingRidesCard";
 import { useActiveRide } from "../../../hooks/queries/useActiveRide";
@@ -33,7 +34,7 @@ const MyRidesScreen = () => {
     data: upcomingData,
     isLoading: loadingUpcoming,
     refetch: refetchUpcomingRides,
-  } = useMyRides();
+  } = useUpcomingRides();
 
   const {
     data: activeData,
@@ -56,7 +57,10 @@ const MyRidesScreen = () => {
   }
 
   const activeRide = activeData?.data;
-  const upcomingRides = upcomingData?.data || [];
+  // The ride that is happening now has its own card above, so leave it out here.
+  const upcomingRides = (upcomingData?.data || []).filter(
+    (ride: any) => ride.id !== activeRide?.id,
+  );
 
 
   return (
@@ -82,7 +86,7 @@ const MyRidesScreen = () => {
             }}
           >
             <Bell color={colors.titleText} size={24} />
-            <View style={styles.notifBadge} />
+            <UnreadDot style={styles.notifBadge} />
           </TouchableOpacity>
         }
       />

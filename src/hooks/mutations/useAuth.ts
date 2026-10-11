@@ -18,19 +18,10 @@ import {
   ResetPasswordRequest,
 } from "../../types/user.types";
 import Toast from "react-native-toast-message";
+import { getApiErrorMessage } from "../../utils/apiError";
 
 const getErrorMessage = (error: any, fallback: string) => {
-  const detail = error?.response?.data?.detail;
-
-  if (Array.isArray(detail)) {
-    return detail[0]?.msg || fallback;
-  }
-
-  if (typeof detail === "string") {
-    return detail;
-  }
-
-  return error?.response?.data?.message || fallback;
+  return getApiErrorMessage(error, fallback);
 };
 
 const showErrorToast = (title: string, message: string) => {
@@ -64,7 +55,6 @@ export const useLogin = () => {
     onSuccess: async (data) => {
       // Handle success (e.g., redirect to OTP verification or show toast)
       console.log("Registration successful:", data.message);
-      console.log("OTP Verified:", data);
       if (data.data.access_token) {
         await storage.setToken(data.data.access_token);
       }
@@ -91,7 +81,6 @@ export const useVerifyOTPMutation = () => {
       authService.verifyRegistrationOTP(payload),
     onSuccess: async (data) => {
       // Logic for when verification is successful
-      console.log("OTP Verified:", data);
     },
     onError: (error: any) => {
       // Logic for 422 Validation errors or invalid codes
@@ -159,7 +148,6 @@ export const useRegisterDriver = () => {
   return useMutation<RegisterDriverResponse, any, RegisterDriverPayload>({
     mutationFn: authService.registerDriver,
     onSuccess: (data) => {
-      console.log("🎉 Driver registered successfully:", data);
     },
     onError: (error) => {
       console.error("❌ Driver registration failed:", error);
@@ -180,7 +168,6 @@ export const useVerifyDriverInvite = () => {
   >({
     mutationFn: authService.verifyDriverInvite,
     onSuccess: (data) => {
-      console.log("✅ Driver invite verified:", data);
     },
     onError: (error) => {
       console.error("❌ Driver invite verification failed:", error);

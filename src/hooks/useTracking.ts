@@ -36,7 +36,6 @@ export const useRideTracking = (rideId: string | null, token: string | null) => 
     RideTrackingService.onLocationUpdate((data) => {
       console.log("──────────────────────────────────────────");
       console.log("📍 LIVE DRIVER TELEMETRY RECEIVED:");
-      console.log(`🌐 Lat/Lng: ${data.latitude}, ${data.longitude}`);
       console.log(`⏱️ ETA: ${data.eta_minutes} mins`);
       console.log("──────────────────────────────────────────");
 

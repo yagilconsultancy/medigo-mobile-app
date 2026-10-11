@@ -1,7 +1,6 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import NotificationsScreen from "../screens/Rider/Notifications/notificationScreen";
-import RideCompletedDetails from "../screens/Rider/Notifications/rideCompleted";
 import PaymentSuccessfulNotificationDetail from "../screens/Rider/Notifications/paymentSuccessfulNotificationDetail";
 import ReceiptScreen from "../screens/Rider/Notifications/receipt";
 
@@ -18,10 +17,6 @@ const RiderNotificationStack: React.FC = () => {
       <Stack.Screen
         name="NotificationsScreen"
         component={NotificationsScreen}
-      />
-      <Stack.Screen
-        name="RideCompletedDetails"
-        component={RideCompletedDetails}
       />
       <Stack.Screen
         name="PaymentSuccessfulNotificationDetail"

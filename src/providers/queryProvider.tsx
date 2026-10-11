@@ -16,7 +16,8 @@ const queryClient = new QueryClient({
       refetchOnReconnect: true,
     },
     mutations: {
-      retry: 1,
+      // Never auto-repeat a booking, payment or payout request.
+      retry: 0,
       onError: (error: unknown) => {
         // Global error handling for mutations
         const axiosError = error as AxiosError<ErrorResponse>;

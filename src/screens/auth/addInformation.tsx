@@ -34,8 +34,6 @@ function AddInformation() {
   };
 
   const handleBioSubmit = () => {
-    console.log(bioFormData);
-
     const profileData: UpdateProfilePayload = {
       first_name: bioFormData.first_name, // Pull these from your local component state
       last_name: bioFormData.last_name,

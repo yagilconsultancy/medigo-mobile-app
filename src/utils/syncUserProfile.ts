@@ -8,8 +8,6 @@ export const syncUserProfile = async () => {
     // Use the service directly, NOT the hook
     const profileData = await userService.userProfile();
 
-    console.log("✅ Profile Data Received:", profileData);
-
     // Update your Zustand store
     useUserStore.getState().setUser(profileData);
 

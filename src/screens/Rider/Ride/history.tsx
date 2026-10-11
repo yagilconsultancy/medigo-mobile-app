@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   StyleSheet,
   View,
@@ -8,10 +8,10 @@ import {
   StatusBar,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from "react-native";
 import {
   ChevronLeft,
-  ChevronDown,
   Download,
   RotateCcw,
   History,
@@ -22,7 +22,12 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import useTheme from "../../../hooks/useThemes";
 import { commonStyles } from "../../../styles/commonStyles";
 import Header from "../../../components/reuseables/header";
-import { useMyRides } from "../../../hooks/queries/useMyRides";
+import {
+  RiderHistoryFilter,
+  useRiderHistoryOverview,
+} from "../../../hooks/queries/useRiderHistoryOverview";
+import rideService from "../../../api/services/rideService";
+import { formatPrice } from "../../../utils/formatPrice";
 import { format } from "date-fns";
 import { RideHistorySkeleton } from "../../../components/skelentonAnimation/rideHistorySkelenton";
 import { useRideStore } from "../../../store/useRideStore";
@@ -32,23 +37,25 @@ const RideHistoryScreen = () => {
   const commonStyling = commonStyles(colors);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch completed rides
-  const { data, isLoading, refetch } = useMyRides({
-    status: "completed",
-    limit: 50,
-  });
+  const [filter, setFilter] = useState<RiderHistoryFilter>("completed");
+  const [limit, setLimit] = useState(20);
 
-  const rides = data?.data || [];
+  // Totals come from the server summary, the list from the filtered page.
+  const { data, isLoading, isFetching, refetch } = useRiderHistoryOverview(
+    filter,
+    limit,
+  );
 
-  // Calculate dynamic stats
-  const stats = useMemo(() => {
-    const totalRides = rides.length;
-    const totalSpent = rides.reduce(
-      (sum, ride) => sum + (ride.final_fare || 0),
-      0,
-    );
-    return { totalRides, totalSpent };
-  }, [rides]);
+  const rides = data?.data?.rides || [];
+  const summary = data?.data?.summary;
+  const filteredTotal = data?.data?.filtered_total ?? rides.length;
+  const canLoadMore = rides.length < filteredTotal && limit < 100;
+
+  const filterOptions: { key: RiderHistoryFilter; label: string }[] = [
+    { key: "completed", label: "Completed" },
+    { key: "cancelled", label: "Cancelled" },
+    { key: "all", label: "All" },
+  ];
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -88,24 +95,54 @@ const RideHistoryScreen = () => {
           <Text style={[commonStyling.subtitle, { fontSize: 14 }]}>
             All your ride history
           </Text>
-          <TouchableOpacity style={styles.filterDropdown}>
-            <History size={14} color="#3B82F6" />
-            <Text style={styles.filterText}>All Time</Text>
-            <ChevronDown size={14} color="#64748B" />
-          </TouchableOpacity>
+        </View>
+
+        {/* Filter */}
+        <View style={styles.filterRow}>
+          {filterOptions.map((option) => {
+            const active = filter === option.key;
+            return (
+              <TouchableOpacity
+                key={option.key}
+                style={[
+                  styles.filterChip,
+                  {
+                    backgroundColor: active
+                      ? colors.primaryColor
+                      : colors.surfaceElevated,
+                    borderColor: colors.lightPrimaryBlueBorder,
+                  },
+                ]}
+                onPress={() => {
+                  setFilter(option.key);
+                  setLimit(20);
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontFamily: "SemiBold",
+                    color: active ? "#FFF" : colors.titleText,
+                  }}
+                >
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Summary Dashboard */}
         <View style={styles.dashboardRow}>
           <StatCard
-            label="TOTAL RIDES"
-            value={stats.totalRides.toString()}
+            label="COMPLETED RIDES"
+            value={String(summary?.completed_rides ?? 0)}
             colors={colors}
             commonStyling={commonStyling}
           />
           <StatCard
-            label="TOTAL SPENT"
-            value={`$${stats.totalSpent.toFixed(2)}`}
+            label="MILES TRAVELED"
+            value={String(summary?.miles_traveled ?? 0)}
             colors={colors}
             commonStyling={commonStyling}
             isPrimary
@@ -115,7 +152,11 @@ const RideHistoryScreen = () => {
         <Text
           style={[styles.sectionTitle, commonStyling.subtitle, styles.bold14]}
         >
-          All Rides
+          {filter === "all"
+            ? "All Rides"
+            : filter === "completed"
+              ? "Completed Rides"
+              : "Cancelled Rides"}
         </Text>
 
         {isLoading ? (
@@ -124,7 +165,26 @@ const RideHistoryScreen = () => {
             style={{ marginTop: 20 }}
           />
         ) : rides.length > 0 ? (
-          rides.map((ride) => <HistoryCard key={ride.id} ride={ride} />)
+          <>
+            {rides.map((ride: any) => (
+              <HistoryCard key={ride.id} ride={ride} />
+            ))}
+            {canLoadMore && (
+              <TouchableOpacity
+                style={styles.loadMoreBtn}
+                disabled={isFetching}
+                onPress={() => setLimit((prev) => Math.min(prev + 20, 100))}
+              >
+                {isFetching ? (
+                  <ActivityIndicator color={colors.primaryColor} />
+                ) : (
+                  <Text style={{ color: colors.primaryColor, fontFamily: "SemiBold" }}>
+                    Show more
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
+          </>
         ) : (
           <View style={styles.emptyContainer}>
             <History size={48} color={colors.textSecondary} strokeWidth={1} />
@@ -186,25 +246,67 @@ const HistoryCard = ({ ride }: { ride: any }) => {
   const formattedTime = format(new Date(ride.scheduled_at), "hh:mm a");
 
   // Status Color Logic
-  const isCancelled = ride.status.toLowerCase() === "cancelled";
-  const statusColor = isCancelled ? "#EF4444" : "#10B981";
+  const rideStatus = String(ride.status ?? "").toLowerCase();
+  const statusColor =
+    rideStatus === "completed"
+      ? "#10B981"
+      : rideStatus === "cancelled" || rideStatus === "no_show"
+        ? "#EF4444"
+        : "#F59E0B";
 
-  const handleRebook = () => {
-    setPickup({
-      address: ride.pickup_address ?? "",
-      latitude: ride.pickup_latitude ?? 0,
-      longitude: ride.pickup_longitude ?? 0,
-    });
-    setDestination({
-      address: ride.destination_address ?? "",
-      latitude: ride.destination_latitude ?? 0,
-      longitude: ride.destination_longitude ?? 0,
-    });
+  const [rebooking, setRebooking] = useState(false);
 
-    navigation.navigate("RiderRideDetailsStack", {
-      screen: "BookARide",
-      params: { rebookRide: ride },
-    });
+  const isUsablePoint = (lat: any, lng: any) =>
+    typeof lat === "number" &&
+    typeof lng === "number" &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    !(lat === 0 && lng === 0);
+
+  const handleRebook = async () => {
+    if (rebooking) return;
+    setRebooking(true);
+    try {
+      // The list item has no coordinates, so load the full ride first.
+      const detail = (await rideService.getRideDetail(ride.id))?.data;
+
+      if (
+        !detail ||
+        !isUsablePoint(detail.pickup_latitude, detail.pickup_longitude) ||
+        !isUsablePoint(detail.destination_latitude, detail.destination_longitude)
+      ) {
+        Alert.alert(
+          "Cannot rebook this ride",
+          "The saved locations for this ride are incomplete. Please book a new ride instead.",
+        );
+        return;
+      }
+
+      setPickup({
+        address: detail.pickup_address ?? "",
+        latitude: detail.pickup_latitude,
+        longitude: detail.pickup_longitude,
+      });
+      setDestination({
+        address: detail.destination_address ?? "",
+        latitude: detail.destination_latitude,
+        longitude: detail.destination_longitude,
+      });
+
+      navigation.navigate("RiderRideDetailsStack", {
+        screen: "BookARide",
+        // scheduledTrip lets the date picker allow a future day; the booking
+        // screen moves the old date forward.
+        params: { rebookRide: detail, scheduledTrip: true },
+      });
+    } catch (e) {
+      Alert.alert(
+        "Cannot rebook this ride",
+        "We could not load this ride. Please check your connection and try again.",
+      );
+    } finally {
+      setRebooking(false);
+    }
   };
 
   return (
@@ -232,10 +334,10 @@ const HistoryCard = ({ ride }: { ride: any }) => {
           <Text
             style={[commonStyling.title, { fontSize: 16, fontFamily: "Bold" }]}
           >
-            ${ride.final_fare || ride.estimated_fare || "0.00"}
+            {formatPrice(ride.final_fare ?? ride.estimated_fare, true)}
           </Text>
           <Text style={[styles.cardStatus, { color: statusColor }]}>
-            {ride.status.toUpperCase()}
+            {String(ride.status ?? "").replace(/_/g, " ").toUpperCase()}
           </Text>
         </View>
       </View>
@@ -297,10 +399,15 @@ const HistoryCard = ({ ride }: { ride: any }) => {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.filledBtn}
+          style={[styles.filledBtn, rebooking && { opacity: 0.6 }]}
           onPress={handleRebook}
+          disabled={rebooking}
         >
-          <RotateCcw size={16} color="#FFF" />
+          {rebooking ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <RotateCcw size={16} color="#FFF" />
+          )}
           <Text style={styles.filledBtnText}>Rebook</Text>
         </TouchableOpacity>
       </View>
@@ -333,6 +440,14 @@ const styles = StyleSheet.create({
     marginHorizontal: 6,
     fontWeight: "600",
   },
+  filterRow: { flexDirection: "row", gap: 8, marginBottom: 20 },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  loadMoreBtn: { alignItems: "center", paddingVertical: 12 },
   dashboardRow: { flexDirection: "row", gap: 12, marginBottom: 24 },
   statCard: {
     flex: 1,

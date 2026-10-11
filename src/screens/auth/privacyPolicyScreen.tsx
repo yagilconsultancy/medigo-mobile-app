@@ -1779,7 +1779,7 @@ const PrivacyPolicyScreen = () => {
             ]}
           >
             To exercise these rights, contact our Privacy Officer at
-            privacy@medigo.com
+            info@getmedigo.com
           </Text>
         </View>
 
@@ -1973,7 +1973,7 @@ const PrivacyPolicyScreen = () => {
                 },
               ]}
             >
-              Email: privacy@medigo.com
+              Email: info@getmedigo.com
             </Text>
             <Text
               style={[

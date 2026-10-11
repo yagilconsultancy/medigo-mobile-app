@@ -350,7 +350,7 @@ export default function DriverRegistrationFlow() {
                     ]}
                   >
                     Your password is encrypted using industry-standard security
-                    protocols. Minimum 8 characters required.
+                    protocols. Use at least 8 characters with an uppercase letter, a lowercase letter and a number.
                   </Text>
                 </View>
               </View>

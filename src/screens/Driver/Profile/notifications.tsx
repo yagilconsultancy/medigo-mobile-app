@@ -164,32 +164,6 @@ const NotificationsScreen = () => {
             { fontSize: 18, fontFamily: "Bold" },
           ]}
         >
-          Earnings & Performance
-        </Text>
-        <NotificationRow
-          icon={<CircleDollarSign size={20} color="#10B981" />}
-          iconBg="#F0FDF4"
-          title="Earnings Updates"
-          sub="Weekly summaries and payouts"
-          value={!!settings?.push_earnings}
-          onToggle={(val) => handleToggle("push_earnings", val)}
-        />
-        <NotificationRow
-          icon={<LineChart size={20} color="#F59E0B" />}
-          iconBg="#FFFBEB"
-          title="Promotions & Bonuses"
-          sub="Surge pricing and bonus opportunities"
-          value={!!settings?.push_promotions}
-          onToggle={(val) => handleToggle("push_promotions", val)}
-        />
-
-        <Text
-          style={[
-            styles.sectionLabel,
-            commonStyling.title,
-            { fontSize: 18, fontFamily: "Bold" },
-          ]}
-        >
           Safety & Support
         </Text>
         <NotificationRow
