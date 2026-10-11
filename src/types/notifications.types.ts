@@ -53,3 +53,8 @@ export interface ChatListResponse {
   limit: number;
   total_pages: number;
 }
+
+export interface UnreadCountResponse {
+  success: boolean;
+  data: { unread_count: number };
+}

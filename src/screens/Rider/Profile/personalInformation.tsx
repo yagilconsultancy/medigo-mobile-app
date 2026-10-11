@@ -23,8 +23,6 @@ const PersonalInformationScreen = () => {
   const commonStyling = commonStyles(colors);
   const { data, isLoading } = useUserProfile();
 
-  console.log(data?.data);
-
   return (
     <SafeAreaView
       style={[
@@ -139,7 +137,11 @@ const PersonalInformationScreen = () => {
             >
               Medical Notes (Optional)
             </Text>
-            <Text style={styles.fieldValueGray}>No medical notes added</Text>
+            <Text style={styles.fieldValueGray}>
+              {data?.data?.medical_notes?.trim()
+                ? data.data.medical_notes
+                : "No medical notes added"}
+            </Text>
           </View>
         </View>
 

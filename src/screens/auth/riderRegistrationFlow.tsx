@@ -171,7 +171,6 @@ export default function RiderRegistrationFlow() {
   };
 
   const handleVerifyOTP = () => {
-    console.log(otpCode, userId);
     verifyMutation.mutate(
       {
         user_id: userId,
@@ -475,14 +474,17 @@ export default function RiderRegistrationFlow() {
                     },
                   ]}
                 >
-                  Code expires in{" "}
-                  <Text
-                    style={{
-                      color: colors.primaryColor,
-                    }}
-                  >
-                    {countdown}s
-                  </Text>
+                  Code is valid for 5 minutes.
+                  {countdown > 0 ? " Resend in " : ""}
+                  {countdown > 0 ? (
+                    <Text
+                      style={{
+                        color: colors.primaryColor,
+                      }}
+                    >
+                      {countdown}s
+                    </Text>
+                  ) : null}
                 </Text>
 
                 <Text
@@ -503,7 +505,6 @@ export default function RiderRegistrationFlow() {
             <Buttons
               title="Verify and Continue"
               onPress={() => {
-                console.log(otpCode);
                 handleVerifyOTP();
               }}
               rightIcon={<RightArrow />}
@@ -629,7 +630,7 @@ export default function RiderRegistrationFlow() {
                     ]}
                   >
                     Your password is encrypted using industry-standard security
-                    protocols. Minimum 8 characters required.
+                    protocols. Use at least 8 characters with an uppercase letter, a lowercase letter and a number.
                   </Text>
                 </View>
               </View>

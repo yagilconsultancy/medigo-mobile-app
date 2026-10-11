@@ -12,7 +12,7 @@ import formatScheduledDate from "../../utils/formatScheduleDate";
 import formatTimeOnly from "../../utils/formatScheduledTime";
 import { capitalizeFirstWord } from "../../utils/capitalizeFirstLetter";
 import { FONT_SIZES } from "../../constants/sizes";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useCreatePaymentIntent } from "../../hooks/mutations/usePayments";
 import { useStripe } from "@stripe/stripe-react-native";
 import { useUserProfile } from "../../hooks/queries/useUserProfile";
@@ -21,15 +21,10 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQueryClient } from "@tanstack/react-query";
 import RideRouteCard from "../map/rideRouteCard";
 import Toast from "react-native-toast-message";
+import { getApiErrorMessage } from "../../utils/apiError";
 
 const getErrorMessage = (error: any, fallback: string) => {
-  const detail = error?.response?.data?.detail;
-
-  if (Array.isArray(detail)) {
-    return detail[0]?.msg || fallback;
-  }
-
-  return error?.response?.data?.message || detail || error?.message || fallback;
+  return getApiErrorMessage(error, error?.message || fallback);
 };
 
 const getRidePaymentAmount = (ride: any) => {
@@ -43,6 +38,10 @@ const UpcomingRideCard = ({ onPress, ride }: any) => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const commonStyling = commonStyles(colors);
   const [loadingPayment, setloadingPayment] = useState(false);
+  // Once the payment sheet succeeds the card must not offer "Pay now" again,
+  // even if the ride status has not refreshed to its paid state yet.
+  const [paymentDone, setPaymentDone] = useState(false);
+  const paymentLockRef = useRef(false);
   const { mutateAsync: getPaymentIntent } = useCreatePaymentIntent();
   const { data: user } = useUserProfile();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
@@ -61,11 +60,14 @@ const UpcomingRideCard = ({ onPress, ride }: any) => {
   };
 
   const openStripePayment = async () => {
+    if (paymentLockRef.current || paymentDone) return;
+    paymentLockRef.current = true;
     setloadingPayment(true);
 
     if (!paymentAmount) {
       showPaymentErrorToast("We could not confirm this ride's fare.");
       setloadingPayment(false);
+      paymentLockRef.current = false;
       return;
     }
 
@@ -111,6 +113,7 @@ const UpcomingRideCard = ({ onPress, ride }: any) => {
         );
       } else {
         // Payment successful
+        setPaymentDone(true);
         await queryClient.invalidateQueries({
           queryKey: ["my-rides"],
         });
@@ -130,6 +133,7 @@ const UpcomingRideCard = ({ onPress, ride }: any) => {
       );
     } finally {
       setloadingPayment(false);
+      paymentLockRef.current = false;
     }
   };
 
@@ -215,8 +219,8 @@ const UpcomingRideCard = ({ onPress, ride }: any) => {
 
       {ride.status !== "cancelled" && (
         <Text style={styles.driverAssignText}>
-          {ride.assigned_by_admin_id ? (
-            "Driver • John Smith"
+          {ride.driver_name ? (
+            `Driver • ${ride.driver_name}`
           ) : (
             <>
               Medigo {rideTypeLabel}
@@ -231,8 +235,9 @@ const UpcomingRideCard = ({ onPress, ride }: any) => {
       <View style={styles.upcomingActions}>
         <TouchableOpacity
           style={styles.detailsBtn}
+          disabled={loadingPayment}
           onPress={() => {
-            ride.status === "pending"
+            ride.status === "pending" && !paymentDone
               ? openStripePayment()
               : navigation.navigate("RiderRideDetailsStack", {
                   screen: "RideDetails",
@@ -244,7 +249,9 @@ const UpcomingRideCard = ({ onPress, ride }: any) => {
             <ActivityIndicator />
           ) : (
             <Text style={styles.detailsBtnText}>
-              {ride.status === "pending" ? "Pay now" : "View Details"}
+              {ride.status === "pending" && !paymentDone
+                ? "Pay now"
+                : "View Details"}
             </Text>
           )}
         </TouchableOpacity>

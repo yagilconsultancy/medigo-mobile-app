@@ -7,6 +7,7 @@ import { API_CONFIG } from "../utils/constants";
 import { storage } from "../utils/storage";
 import { ErrorResponse } from "../types/auth.types";
 import { signOut } from "../utils/signOut";
+import { getApiErrorMessage } from "../utils/apiError";
 import { navigateAndReset } from "../utils/navigationRef";
 import Toast from "react-native-toast-message";
 
@@ -29,18 +30,8 @@ const getErrorMessage = (
   error: AxiosError<ErrorResponse>,
   fallback = "Something went wrong. Please try again.",
 ) => {
-  const responseData = error.response?.data as any;
-  const detail = responseData?.detail;
-
-  if (Array.isArray(detail)) {
-    return detail[0]?.msg || fallback;
-  }
-
-  if (typeof detail === "string") {
-    return detail;
-  }
-
-  return responseData?.message || error.message || fallback;
+  const apiMessage = getApiErrorMessage(error, "");
+  return apiMessage || error.message || fallback;
 };
 
 const showErrorToast = (message: string) => {

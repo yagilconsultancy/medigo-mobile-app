@@ -42,7 +42,6 @@ export const useRequestWithdrawal = () => {
   return useMutation<WithdrawalResponse, Error, WithdrawalPayload>({
     mutationFn: (payload) => paymentService.requestWithdrawal(payload),
     onSuccess: (data) => {
-      console.log("✅ Withdrawal requested successfully:", data);
 
       // Force an immediate refresh of wallet balances and transaction list caches
       queryClient.invalidateQueries({ queryKey: ["walletBalance"] });

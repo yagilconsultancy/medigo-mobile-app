@@ -80,7 +80,15 @@ export interface UpcomingRide {
   estimated_distance_miles: number;
   estimated_duration_minutes: number;
   estimated_fare: number;
+  final_fare?: number | null;
   facility_name?: string;
+  // Passenger fields as returned by the backend RideResponse
+  passenger_first_name?: string | null;
+  passenger_last_name?: string | null;
+  passenger_phone?: string | null;
+  special_instructions?: string | null;
+  mobility_level?: string | null;
+  assistance_level?: string | null;
 }
 
 export interface UpcomingRidesResponse {
@@ -108,7 +116,12 @@ export interface RideDetail {
   rider_id: string;
   driver_id: string;
   ride_type: string;
-  rider_phone: string | null;
+  rider_phone?: string | null; // not provided by the backend; use passenger_phone
+  passenger_first_name?: string | null;
+  passenger_last_name?: string | null;
+  passenger_phone?: string | null;
+  driver_notes?: { id: string; content: string; created_at: string }[];
+  cancellation_reason?: string | null;
   trip_type: string;
   trip_structure: string;
   appointment_time: string;

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
   View,
@@ -10,7 +10,7 @@ import {
   Image,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { ChevronLeft, Camera, Lock, ChevronDown } from "lucide-react-native";
+import { ChevronLeft, Camera, Lock } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -32,9 +32,25 @@ const EditProfileScreen = () => {
     lastName: data?.data.last_name,
     email: data?.data.email,
     phone: data?.data.phone,
-    medicalNotes: "",
+    medicalNotes: data?.data.medical_notes ?? "",
     avatar_url: data?.data.avatar_url,
   });
+
+  // The profile may still be loading when this screen mounts; fill the form
+  // once it arrives (only the fields the user has not already typed into).
+  useEffect(() => {
+    const profile = data?.data;
+    if (!profile) return;
+    setForm((prev) => ({
+      ...prev,
+      firstName: prev.firstName ?? profile.first_name,
+      lastName: prev.lastName ?? profile.last_name,
+      email: prev.email ?? profile.email,
+      phone: prev.phone ?? profile.phone,
+      medicalNotes: prev.medicalNotes || (profile.medical_notes ?? ""),
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.data?.id]);
   const updateProfileMutation = useUpdateProfileMutation();
   const uploadAvatarMutation = useUploadAvatarMutation();
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
@@ -49,8 +65,7 @@ const EditProfileScreen = () => {
     const profileData: UpdateProfilePayload = {
       first_name: form.firstName, // Pull these from your local component state
       last_name: form.lastName,
-      medical_notes: form.medical_notes,
-      email: form.email,
+      medical_notes: form.medicalNotes.trim(),
     };
 
     const pickedLocalPhoto =
@@ -219,8 +234,11 @@ const EditProfileScreen = () => {
           ]}
           keyboardType="email-address"
           value={form.email}
-          onChangeText={(val) => updateBioFields({ email: val })}
+          editable={false}
         />
+        <Text style={styles.readOnlyHint}>
+          Email can't be changed here. Contact support to update it.
+        </Text>
 
         {/* Phone Input with Dropdown */}
         <Text
@@ -255,10 +273,12 @@ const EditProfileScreen = () => {
             ]}
             keyboardType="phone-pad"
             value={form.phone}
-            onChangeText={(val) => updateBioFields({ phone: val })}
+            editable={false}
           />
-          <ChevronDown size={20} color="#CBD5E1" style={{ marginRight: 12 }} />
         </View>
+        <Text style={styles.readOnlyHint}>
+          Phone number can't be changed here. Contact support to update it.
+        </Text>
 
         {/* Medical Info Section */}
         <Text
@@ -296,7 +316,17 @@ const EditProfileScreen = () => {
             >
               Medical Notes (Optional)
             </Text>
-            <Text style={styles.fieldValueGray}>No medical notes added</Text>
+            <TextInput
+              style={[
+                styles.medicalInput,
+                { color: colors.titleText, fontFamily: "Regular" },
+              ]}
+              placeholder="No medical notes added"
+              placeholderTextColor="#94A3B8"
+              multiline
+              value={form.medicalNotes}
+              onChangeText={(val) => updateBioFields({ medicalNotes: val })}
+            />
           </View>
         </View>
 
@@ -441,6 +471,7 @@ const styles = StyleSheet.create({
   fieldContainer: { padding: 16 },
   fieldLabel: { marginBottom: 6 },
   fieldValueGray: { fontSize: 14, color: "#94A3B8" },
+  readOnlyHint: { fontSize: 12, color: "#94A3B8", marginTop: 6 },
 });
 
 export default EditProfileScreen;

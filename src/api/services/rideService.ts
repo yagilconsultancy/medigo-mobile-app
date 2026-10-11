@@ -24,6 +24,17 @@ const rideService = {
     return response.data;
   },
 
+  getRiderHistoryOverview: async (params: {
+    status?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<any> => {
+    const response = await apiClient.get("/rides/rider/me/overview", {
+      params,
+    });
+    return response.data;
+  },
+
   createRide: async (payload: any): Promise<any> => {
     const response: AxiosResponse<any> = await apiClient.post(
       "/rides/",

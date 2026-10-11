@@ -39,6 +39,12 @@ import RideRouteCard from "../../../components/map/rideRouteCard";
 import { milesToKm } from "../../../utils/milesToKilometer";
 import { formatDuration } from "../../../utils/formatDuration";
 import { formatPrice } from "../../../utils/formatPrice";
+import { formatDisplayText } from "../../../utils/formatText";
+import {
+  getPassengerName,
+  getPassengerPhone,
+} from "../../../utils/passenger";
+import ErrorState from "../../../components/reuseables/errorState";
 
 const RideDetails = () => {
   const { colors, theme } = useTheme();
@@ -46,7 +52,7 @@ const RideDetails = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const route = useRoute<any>();
   const { id } = route.params;
-  const { data, isLoading } = useRideDetail(id);
+  const { data, isLoading, refetch } = useRideDetail(id);
   const cancelRef = useRef<OverlayBottomSheetRef>(null);
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const { mutate: updateStatus, isPending } = useUpdateRideStatus();
@@ -57,23 +63,41 @@ const RideDetails = () => {
     { id: "2", text: "Currently not available" },
   ];
 
-  if (isLoading || !data) {
-    return <RideDetailsSkeleton />;
+  if (!data) {
+    if (isLoading) {
+      return <RideDetailsSkeleton />;
+    }
+    // Request failed (e.g. 404 when the ride no longer exists): do not spin forever.
+    return (
+      <ErrorState
+        title="Ride unavailable"
+        message="We could not load this ride. It may have been removed or you may be offline."
+        onRetry={() => refetch()}
+        onBack={() => navigation.goBack()}
+      />
+    );
   }
 
-  const activeRide = data?.data;
-
-  console.log(activeRide);
+  const activeRide = data.data;
+  const passengerName = getPassengerName(activeRide);
+  const passengerPhone = getPassengerPhone(activeRide);
+  const rideStatus = activeRide?.status ?? "";
+  const isFinished = rideStatus === "cancelled" || rideStatus === "completed";
+  // The backend only lets a driver cancel (unassign) while the ride is
+  // driver_assigned; after that the request would be rejected.
+  const canCancel = rideStatus === "driver_assigned";
+  const specialInstructions = activeRide?.special_instructions?.trim();
+  const driverNotes = activeRide?.driver_notes ?? [];
 
   const callRider = async () => {
-    const phoneNumber = activeRide?.rider_phone;
+    const phoneNumber = passengerPhone;
 
     if (!phoneNumber) {
-      Alert.alert("Error", "Rider phone number not available");
+      Alert.alert("Error", "Passenger phone number not available");
       return;
     }
 
-    const url = `tel:${phoneNumber}`;
+    const url = `tel:${phoneNumber.replace(/[^\d+]/g, "")}`;
 
     const supported = await Linking.canOpenURL(url);
 
@@ -134,7 +158,7 @@ const RideDetails = () => {
                   color: colors.primaryColor,
                 }}
               >
-                Scheduled
+                {formatDisplayText(rideStatus) || "Scheduled"}
               </Text>
             </View>
             <Text
@@ -196,20 +220,22 @@ const RideDetails = () => {
                   },
                 ]}
               >
-                {data?.data.rider_name}
+                {passengerName || "Passenger"}
               </Text>
-              <Text
-                style={[
-                  styles.riderStats,
-                  commonStyling.subtitle,
-                  {
-                    fontSize: 12,
-                  },
-                ]}
-              >
-                ⭐ {data?.data.rider_rating} • {data?.data.rider_trip_count}{" "}
-                rides
-              </Text>
+              {activeRide.rider_rating != null && (
+                <Text
+                  style={[
+                    styles.riderStats,
+                    commonStyling.subtitle,
+                    {
+                      fontSize: 12,
+                    },
+                  ]}
+                >
+                  ⭐ {activeRide.rider_rating} • {activeRide.rider_trip_count}{" "}
+                  rides
+                </Text>
+              )}
               <View style={[styles.medicalBadge]}>
                 <CircleDot size={12} color={colors.primaryColor} />
                 <Text
@@ -224,11 +250,82 @@ const RideDetails = () => {
                 </Text>
               </View>
             </View>
-           {data?.data.rider_phone && (<TouchableOpacity style={styles.phoneButton} onPress={callRider}>
+           {!!passengerPhone && (<TouchableOpacity style={styles.phoneButton} onPress={callRider}>
               <Phone size={20} color="#FFF" fill="#FFF" />
             </TouchableOpacity>)}
           </View>
         </View>
+
+        {/* Care needs, instructions and dispatcher notes (only when present) */}
+        {(!!specialInstructions ||
+          !!activeRide.mobility_level ||
+          !!activeRide.assistance_level ||
+          driverNotes.length > 0) && (
+          <View>
+            <Text
+              style={[
+                styles.sectionLabel,
+                commonStyling.subtitle,
+                {
+                  fontSize: 10,
+                  fontFamily: "Medium",
+                },
+              ]}
+            >
+              PASSENGER NEEDS
+            </Text>
+            <View
+              style={[
+                styles.card,
+                {
+                  borderColor: colors.lightPrimaryBlueBorder,
+                },
+              ]}
+            >
+              {!!activeRide.mobility_level && (
+                <Text
+                  style={[
+                    commonStyling.title,
+                    { fontSize: 14, fontFamily: "SemiBold", marginBottom: 6 },
+                  ]}
+                >
+                  Mobility: {formatDisplayText(activeRide.mobility_level)}
+                </Text>
+              )}
+              {!!activeRide.assistance_level && (
+                <Text
+                  style={[
+                    commonStyling.title,
+                    { fontSize: 14, fontFamily: "SemiBold", marginBottom: 6 },
+                  ]}
+                >
+                  Assistance: {formatDisplayText(activeRide.assistance_level)}
+                </Text>
+              )}
+              {!!specialInstructions && (
+                <Text
+                  style={[
+                    commonStyling.subtitle,
+                    { fontSize: 13, marginBottom: 6 },
+                  ]}
+                >
+                  Special instructions: {specialInstructions}
+                </Text>
+              )}
+              {driverNotes.map((note) => (
+                <Text
+                  key={note.id}
+                  style={[
+                    commonStyling.subtitle,
+                    { fontSize: 13, marginTop: 4 },
+                  ]}
+                >
+                  Dispatcher note: {note.content}
+                </Text>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* Schedule */}
 
@@ -459,15 +556,31 @@ const RideDetails = () => {
           </View>
         </View>
 
+        {isFinished && (
+          <Text
+            style={[
+              commonStyling.subtitle,
+              { fontSize: 14, textAlign: "center", marginTop: 8 },
+            ]}
+          >
+            {rideStatus === "cancelled"
+              ? "This ride was cancelled."
+              : "This ride is completed."}
+          </Text>
+        )}
+
+        {!isFinished && (
         <Buttons
           title="Navigate to Pickup"
           loading={isPending}
           onPress={() => {
             if (!data?.data?.id) return;
+            const lastStatus =
+              activeRide?.timeline?.at(-1)?.to_status ?? rideStatus;
             if (
-              activeRide?.timeline?.at(-1).to_status === "driver_en_route" ||
-              activeRide?.timeline?.at(-1).to_status === "driver_arrived" ||
-              activeRide?.timeline?.at(-1).to_status === "in_progress"
+              lastStatus === "driver_en_route" ||
+              lastStatus === "driver_arrived" ||
+              lastStatus === "in_progress"
             ) {
               navigation.navigate("TripInProgress", {
                 activeRide,
@@ -494,20 +607,23 @@ const RideDetails = () => {
             );
           }}
         />
+        )}
 
-        <View
-          style={{
-            marginTop: 16,
-          }}
-        >
-          <Buttons
-            type="cancel"
-            title="Cancel Ride"
-            onPress={() => {
-              cancelRef.current?.open();
+        {canCancel && (
+          <View
+            style={{
+              marginTop: 16,
             }}
-          />
-        </View>
+          >
+            <Buttons
+              type="cancel"
+              title="Cancel Ride"
+              onPress={() => {
+                cancelRef.current?.open();
+              }}
+            />
+          </View>
+        )}
       </ScrollView>
 
       <OverlayBottomSheet ref={cancelRef} height={600} overlay={true}>
@@ -627,7 +743,19 @@ const RideDetails = () => {
                           { reason: selectedReason },
                           {
                             onSuccess: () => {
+                              cancelRef.current?.close();
                               navigation.goBack();
+                            },
+                            onError: (err: any) => {
+                              const detail = err?.response?.data?.detail;
+                              const message =
+                                (typeof detail === "string" && detail) ||
+                                detail?.[0]?.msg ||
+                                err?.response?.data?.message ||
+                                "Could not cancel this ride.";
+                              cancelRef.current?.close();
+                              Alert.alert("Cannot cancel ride", message);
+                              refetch();
                             },
                           },
                         )

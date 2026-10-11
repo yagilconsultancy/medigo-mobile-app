@@ -32,6 +32,8 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useDriverProfile } from "../../../hooks/queries/useDriverProfile";
 import { useUserStore } from "../../../store/userStore";
 import { signOut } from "../../../utils/signOut";
+import userService from "../../../api/services/userService";
+import locationTrackingService from "../../../services/locationTrackingService";
 import ModalComponent from "../../../components/modals/modal";
 import Buttons from "../../../components/buttons/buttons";
 import { ProfileSkeleton } from "../../../components/skelentonAnimation/profileSkelenton";
@@ -441,6 +443,21 @@ export default function DriverProfileScreen() {
               type="danger"
               title="Yes"
               onPress={async () => {
+                // Best effort: take the driver offline so they stop receiving
+                // ride offers, but never let a failure or slow network block
+                // the logout (3 second cap).
+                try {
+                  await Promise.race([
+                    userService.toggleOnlineStatus({ is_online: false }),
+                    new Promise((resolve) => setTimeout(resolve, 3000)),
+                  ]);
+                } catch (error) {
+                  console.warn(
+                    "Could not set driver offline on logout:",
+                    (error as Error)?.message,
+                  );
+                }
+                locationTrackingService.disconnect();
                 await signOut();
                 navigation.reset({
                   index: 0,

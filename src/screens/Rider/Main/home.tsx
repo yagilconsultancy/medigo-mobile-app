@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import UnreadDot from "../../../components/reuseables/unreadDot";
 import {
   StyleSheet,
   View,
@@ -223,7 +224,7 @@ const RiderHomeScreen = () => {
               }}
             >
               <Bell color={colors.titleText} size={24} />
-              <View style={styles.notifBadge} />
+              <UnreadDot style={styles.notifBadge} />
             </TouchableOpacity>
           </View>
 

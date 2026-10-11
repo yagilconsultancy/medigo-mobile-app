@@ -214,8 +214,8 @@ export default function DriverActivation() {
               </TouchableOpacity>
             </View>
             <Text style={[commonStyling.subtitle, styles.hint]}>
-              At least {MIN_PASSWORD_LENGTH} characters, with upper and lower
-              case letters, a number and a symbol.
+              At least {MIN_PASSWORD_LENGTH} characters, with an uppercase
+              letter, a lowercase letter and a number.
             </Text>
           </View>
 

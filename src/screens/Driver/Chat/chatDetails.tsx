@@ -49,7 +49,7 @@ const ChatHeader = () => {
                 },
               ]}
             >
-              Sarah Johnson
+              Passenger
             </Text>
             <View style={styles.statusRow}>
               <View style={styles.onlineDot} />

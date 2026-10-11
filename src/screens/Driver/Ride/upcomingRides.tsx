@@ -21,6 +21,9 @@ import Header from "../../../components/reuseables/header";
 import { useDriverUpcomingRides } from "../../../hooks/queries/useDriverUpcomingRide";
 import { UpcomingRidesSkeleton } from "../../../components/skelentonAnimation/upcomingRides";
 import { formatHumanReadableDate } from "../../../utils/formatHumanReadableDate";
+import { formatDisplayText } from "../../../utils/formatText";
+import { formatPrice } from "../../../utils/formatPrice";
+import { getPassengerName } from "../../../utils/passenger";
 
 const UpcomingRidesScreen = () => {
   const { colors, theme } = useTheme();
@@ -38,8 +41,6 @@ const UpcomingRidesScreen = () => {
   if (isLoading) {
     return <UpcomingRidesSkeleton />;
   }
-
-  console.log(rides);
 
   return (
     <SafeAreaView
@@ -119,7 +120,7 @@ const UpcomingRidesScreen = () => {
                 <Text
                   style={[styles.statusText, { color: colors.primaryColor }]}
                 >
-                  {ride.status}
+                  {formatDisplayText(ride.status)}
                 </Text>
               </View>
             </View>
@@ -135,7 +136,7 @@ const UpcomingRidesScreen = () => {
                 },
               ]}
             >
-              {ride.passenger}
+              {getPassengerName(ride) || "Passenger"}
             </Text>
             <View
               style={[
@@ -152,9 +153,26 @@ const UpcomingRidesScreen = () => {
                   color: colors.primaryColor,
                 }}
               >
-                {ride.ride_type}
+                {formatDisplayText(ride.ride_type)}
               </Text>
             </View>
+            {(!!ride.mobility_level || !!ride.special_instructions?.trim()) && (
+              <Text
+                style={[
+                  commonStyling.subtitle,
+                  { fontSize: 12, marginTop: 8 },
+                ]}
+              >
+                {[
+                  ride.mobility_level
+                    ? `Mobility: ${formatDisplayText(ride.mobility_level)}`
+                    : "",
+                  ride.special_instructions?.trim() || "",
+                ]
+                  .filter(Boolean)
+                  .join(" • ")}
+              </Text>
+            )}
 
             {/* Route Timeline */}
             <View style={styles.routeContainer}>
@@ -246,7 +264,7 @@ const UpcomingRidesScreen = () => {
                   },
                 ]}
               >
-                {ride.final_fare}
+                {formatPrice(ride.final_fare ?? ride.estimated_fare, true)}
               </Text>
               <TouchableOpacity
                 style={styles.detailsButton}
