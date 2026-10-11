@@ -39,6 +39,8 @@ export async function signOut(options: { callServer?: boolean } = {}) {
     }
   }
 
+  // Stop any screen data still loading, then wipe the cache.
+  await queryClient.cancelQueries();
   queryClient.clear();
   await useUserStore.getState().logout();
 }

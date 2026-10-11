@@ -195,6 +195,17 @@ apiClient.interceptors.response.use(
     ) {
       originalRequest._retry = true;
 
+      // If both stored tokens are already gone, the user has just signed out
+      // (a screen fired one last request). There is no session left to expire,
+      // so stay quiet: no refresh, no "Session expired" message.
+      const [currentAccess, currentRefresh] = await Promise.all([
+        storage.getToken(),
+        storage.getRefreshToken(),
+      ]);
+      if (!currentAccess && !currentRefresh) {
+        return Promise.reject(error);
+      }
+
       const outcome = await refreshAccessToken();
 
       if (outcome.ok) {
