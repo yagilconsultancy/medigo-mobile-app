@@ -16,7 +16,6 @@ import {
   UserProfileResponse,
 } from "../../types/user.types";
 import { Alert } from "react-native";
-import { useUserStore } from "../../store/userStore";
 
 export const useUpdateProfileMutation = () => {
   const queryClient = useQueryClient();
@@ -169,26 +168,24 @@ export const useDeleteEmergencyContact = () => {
 
 export const useUpdateDriverStatus = () => {
   const queryClient = useQueryClient();
-  const { setUser } = useUserStore();
 
   return useMutation({
     mutationFn: (payload: UpdateStatusPayload) =>
       userService.toggleOnlineStatus(payload),
     onSuccess: (response) => {
-      // 1. Update the local store so the UI reflects the change immediately
-      // Assuming your store structure has a data object
-      const currentState = useUserStore.getState().user;
-      if (currentState) {
-        setUser({
-          ...currentState,
-          data: {
-            ...currentState.data,
-            is_active: response.data.is_online, // Mapping is_online to your local is_active
-          },
-        });
-      }
+      // The online switch is the driver's is_online flag, which lives on the
+      // driver profile. Keep that cache in sync; never write it to the
+      // account-level user.data.is_active.
+      queryClient.setQueryData(["driver-profile-me"], (old: any) =>
+        old?.data
+          ? {
+              ...old,
+              data: { ...old.data, is_online: response.data.is_online },
+            }
+          : old,
+      );
 
-      // 2. Refresh other data that depends on being online
+      // Refresh other data that depends on being online
       queryClient.invalidateQueries({ queryKey: ["earnings-summary"] });
     },
     onError: (error: any) => {},

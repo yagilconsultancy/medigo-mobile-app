@@ -31,7 +31,6 @@ const DriverPersonalInformationScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const pickup = useRideStore((s) => s.pickup);
 
-  console.log(user);
 
   return (
     <SafeAreaView

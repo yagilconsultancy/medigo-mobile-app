@@ -17,6 +17,7 @@ import {
   MapPin,
   Star,
 } from "lucide-react-native";
+import Toast from "react-native-toast-message";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -34,15 +35,24 @@ const EditLocationScreen = () => {
   const { colors, theme } = useTheme();
   const route = useRoute<any>();
   const commonStyling = commonStyles(colors);
-  const [locationType, setLocationType] = useState(route.params.locationType);
-  const [isFavorite, setIsFavorite] = useState(true);
+  const [locationType, setLocationType] = useState(
+    route.params.locationType === "medical"
+      ? "hospital"
+      : route.params.locationType,
+  );
+  const [isFavorite, setIsFavorite] = useState<boolean>(
+    route.params.isDefault === true,
+  );
   const [name, setname] = useState(route.params.locationName);
   const [form, setForm] = useState({
     label: "",
     address: route.params.address,
-    latitude: 0,
-    longitude: 0,
-    place_id: "",
+    // Start from the saved coordinates; replaced only when a new place is picked.
+    latitude: (route.params.latitude ?? null) as number | null,
+    longitude: (route.params.longitude ?? null) as number | null,
+    place_id: (route.params.placeId ?? "") as string,
+    // Address text of the place the coordinates belong to.
+    selectedAddress: (route.params.address ?? "") as string,
   });
   const [loadingAddress, setloadingAddress] = useState(false);
   const locationTypes = [
@@ -57,9 +67,10 @@ const EditLocationScreen = () => {
     setForm((prev) => ({
       ...prev,
       address: data.address,
+      selectedAddress: data.address,
       latitude: data.latitude,
       longitude: data.longitude,
-      place_id: data.place_id,
+      place_id: data.place_id ?? "",
     }));
   };
 
@@ -68,15 +79,37 @@ const EditLocationScreen = () => {
   };
 
   const handleSave = () => {
-    console.log(form.place_id);
+    if (!name?.trim()) {
+      Toast.show({
+        type: "errorToast",
+        text1: "Error",
+        text2: "Please enter a name for this location.",
+      });
+      return;
+    }
+
+    // The coordinates must belong to the address being saved.
+    if (
+      form.latitude === null ||
+      form.longitude === null ||
+      form.address !== form.selectedAddress
+    ) {
+      Toast.show({
+        type: "errorToast",
+        text1: "Error",
+        text2: "Please choose an address from the suggestions list.",
+      });
+      return;
+    }
+
+    // notes is left out so existing notes are never overwritten.
     const payload: UpdateLocationRequest = {
-      label: name,
+      label: name.trim(),
       location_type: locationType === "hospital" ? "medical" : locationType,
       address: form.address,
       latitude: form.latitude,
       longitude: form.longitude,
-      place_id: form.place_id,
-      notes: "string",
+      ...(form.place_id ? { place_id: form.place_id } : {}),
       is_default: isFavorite,
     };
 

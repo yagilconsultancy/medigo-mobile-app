@@ -118,6 +118,16 @@ const getScheduledDate = (date: string, time: string) => {
   return new Date(year, month - 1, day, hours, minutes, 0);
 };
 
+// A usable map point: finite, in range and not the (0, 0) placeholder.
+const hasValidCoordinates = (latitude?: number | null, longitude?: number | null) =>
+  typeof latitude === "number" &&
+  typeof longitude === "number" &&
+  Number.isFinite(latitude) &&
+  Number.isFinite(longitude) &&
+  Math.abs(latitude) <= 90 &&
+  Math.abs(longitude) <= 180 &&
+  !(latitude === 0 && longitude === 0);
+
 const toNumber = (value: number | string | undefined | null) => {
   const numericValue = typeof value === "string" ? Number(value) : value;
 
@@ -241,6 +251,11 @@ const BookARide = () => {
   });
   const [rideId, setrideId] = useState("");
   const [loadingPayment, setloadingPayment] = useState(false);
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
+  // Synchronous lock so a fast double tap cannot start two payments.
+  const paymentLockRef = useRef(false);
+  const [pickupError, setPickupError] = useState("");
+  const [destinationError, setDestinationError] = useState("");
   const {
     mutate: getEstimate,
     data: estimateData,
@@ -280,7 +295,11 @@ const BookARide = () => {
     setPassengerFirstName(rebookRide.passenger_first_name ?? "");
     setPassengerLastName(rebookRide.passenger_last_name ?? "");
     setPassengerPhone(rebookRide.passenger_phone ?? "");
-    setDate(getDateFromRide(rebookRide.scheduled_at));
+    // Never resubmit the old (past) date: keep the original time of day but
+    // move the date to the earliest allowed future day.
+    const originalDate = getDateFromRide(rebookRide.scheduled_at);
+    const earliestDate = getDateOffsetString(1);
+    setDate(originalDate < earliestDate ? earliestDate : originalDate);
 
     if (rebookTime) {
       setTime(rebookTime);
@@ -390,13 +409,24 @@ const BookARide = () => {
     });
   };
 
+  // Typing in the address box invalidates any coordinates picked earlier, so
+  // the rider has to choose a suggestion again.
   const updatePickUPFormFields = (fields: Partial<any>) => {
-    setpickUpForm((prev) => ({ ...prev, ...fields }));
+    setpickUpForm((prev) =>
+      "address" in fields && fields.address !== prev.address
+        ? { ...prev, ...fields, latitude: 0, longitude: 0 }
+        : { ...prev, ...fields },
+    );
   };
   const updateDestinationFormFields = (fields: Partial<any>) => {
-    setdestinationForm((prev) => ({ ...prev, ...fields }));
+    setdestinationForm((prev) =>
+      "address" in fields && fields.address !== prev.address
+        ? { ...prev, ...fields, latitude: 0, longitude: 0 }
+        : { ...prev, ...fields },
+    );
   };
   const onDestinationPlaceSelected = (data: any) => {
+    setDestinationError("");
     setdestinationForm((prev) => ({
       ...prev,
       address: data.address,
@@ -405,6 +435,7 @@ const BookARide = () => {
     }));
   };
   const onPickUpPlaceSelected = (data: any) => {
+    setPickupError("");
     setpickUpForm((prev) => ({
       ...prev,
       address: data.address,
@@ -469,11 +500,24 @@ const BookARide = () => {
       Alert.alert("Booking Error", "Please review the fare estimate first.");
       return;
     }
+    // Block repeat taps while a booking/payment is running or already paid.
+    if (paymentCompleted || paymentLockRef.current) return;
+    paymentLockRef.current = true;
+
     // check if booking has been made
     if(rideId){
      return openStripePayment(rideId);
     }
     const scheduledDate = getScheduledDate(date, time);
+
+    if (scheduledDate.getTime() <= Date.now()) {
+      paymentLockRef.current = false;
+      Alert.alert(
+        "Choose a future time",
+        "Please pick a pickup date and time that is still ahead of you.",
+      );
+      return;
+    }
     const passengerIsRider = passenger === "Myself";
 
     const payload: CreateRideRequest = {
@@ -515,6 +559,7 @@ const BookARide = () => {
         openStripePayment(createdRideId);
       },
       onError: (error: any) => {
+        paymentLockRef.current = false;
         console.error(
           "Failed to Create Ride:",
           error?.response?.data || error.message,
@@ -543,11 +588,14 @@ const BookARide = () => {
   };
 
   const openStripePayment = async (createdRideId = rideId) => {
+    paymentLockRef.current = true;
+    let paymentSucceeded = false;
     setloadingPayment(true);
 
     if (!estimateResults?.data.total_fare) {
       showPaymentErrorToast("We could not confirm this ride's fare.");
       setloadingPayment(false);
+      paymentLockRef.current = false;
       return;
     }
 
@@ -592,7 +640,9 @@ const BookARide = () => {
             : presentError.message || "Payment could not be completed.",
         );
       } else {
-        // Payment successful
+        // Payment successful: keep the Pay button locked from here on.
+        paymentSucceeded = true;
+        setPaymentCompleted(true);
         await queryClient.invalidateQueries({
           queryKey: ["my-rides"],
         });
@@ -612,6 +662,7 @@ const BookARide = () => {
       );
     } finally {
       setloadingPayment(false);
+      if (!paymentSucceeded) paymentLockRef.current = false;
     }
   };
 
@@ -671,6 +722,8 @@ const BookARide = () => {
             setassistance={setassistance}
             additionalNotes={additionalNotes}
             setadditionalNotes={setadditionalNotes}
+            pickupError={pickupError}
+            destinationError={destinationError}
           />
         );
       case 3:
@@ -775,6 +828,20 @@ const BookARide = () => {
     } else if (step === 2 && !destinationForm.address) {
       Alert.alert("Please enter destination location");
       return;
+    } else if (
+      step === 2 &&
+      !hasValidCoordinates(pickUpForm.latitude, pickUpForm.longitude)
+    ) {
+      setPickupError("Please choose your pickup location from the suggestions.");
+      return;
+    } else if (
+      step === 2 &&
+      !hasValidCoordinates(destinationForm.latitude, destinationForm.longitude)
+    ) {
+      setDestinationError(
+        "Please choose your destination from the suggestions.",
+      );
+      return;
     } else if (step === 2 && !passengerPhone.trim()) {
       Alert.alert("Please enter passenger phone number");
       return;
@@ -786,6 +853,8 @@ const BookARide = () => {
       Alert.alert("Please enter passenger first and last name");
       return;
     } else if (step === 2) {
+      setPickupError("");
+      setDestinationError("");
       handleGetEstimate();
       nextStep();
     } else if (step === 3 && !selectedVehicleDisplayName) {
@@ -800,12 +869,24 @@ const BookARide = () => {
     <TouchableOpacity
       style={styles.continueButton}
       onPress={handleContinuePress}
+      disabled={
+        isPending ||
+        loadingPayment ||
+        isPendingBaseFareEstimate ||
+        paymentCompleted
+      }
     >
       {isPending || loadingPayment || isPendingBaseFareEstimate ? (
         <ActivityIndicator />
       ) : (
         <Text style={styles.continueText}>
-          {step === 3 ? "Review" : step === 4 ? `Pay (c$${estimateResults?.data.total_fare})` : "Continue"}
+          {step === 3
+            ? "Review"
+            : step === 4
+              ? paymentCompleted
+                ? "Paid"
+                : `Pay (c$${estimateResults?.data.total_fare})`
+              : "Continue"}
         </Text>
       )}
     </TouchableOpacity>

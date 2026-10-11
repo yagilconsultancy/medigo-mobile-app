@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   StatusBar,
+  Alert,
 } from "react-native";
 import {
   ChevronLeft,
@@ -40,7 +41,21 @@ const ReviewAndAccept = () => {
 
   const consentMutation = useUpdateConsentMutation();
 
+  const allAccepted =
+    agreements.emergency &&
+    agreements.privacy &&
+    agreements.terms &&
+    agreements.location;
+
   const handleAcceptAll = () => {
+    if (!allAccepted) {
+      Alert.alert(
+        "Agreement required",
+        "Please tick all four agreements to continue.",
+      );
+      return;
+    }
+
     const payload = {
       consent_emergency_services: agreements.emergency,
       consent_privacy_policy: agreements.privacy,
@@ -206,6 +221,7 @@ const ReviewAndAccept = () => {
         <Buttons
           title="Accept all agreement to continue"
           onPress={handleAcceptAll}
+          type={allAccepted ? "primary" : "inactive"}
           loading={consentMutation.isPending}
         />
       </View>

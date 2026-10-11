@@ -151,7 +151,6 @@ class RideTrackingService {
     this.hasActiveTrackingSession = false;
 
     this.socket.emit("join_ride", { ride_id: rideId }, (response: any) => {
-      console.log("📦 join_ride ack:", JSON.stringify(response));
 
       if (response?.error) {
         console.error("❌ Server rejected join_ride:", response.error);
@@ -272,13 +271,6 @@ class RideTrackingService {
             "📦 Rejected update_location ack:",
             JSON.stringify(response),
           );
-        } else {
-          console.log(
-            `⚡ [GPS Broadcast] Lat: ${telemetry.latitude.toFixed(5)} | Lng: ${telemetry.longitude.toFixed(5)} | Speed: ${telemetry.speed?.toFixed(1)} km/h`,
-          );
-          if (response) {
-            console.log("📦 Server Ack Payload:", JSON.stringify(response));
-          }
         }
       });
     };

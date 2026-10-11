@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import MapScreen from "../../../components/map/map";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useTheme from "../../../hooks/useThemes";
 import { commonStyles } from "../../../styles/commonStyles";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -32,6 +32,9 @@ import { formatDisplayText } from "../../../utils/formatText";
 import Buttons from "../../../components/buttons/buttons";
 import { useUpdateRideStatus } from "../../../hooks/mutations/useRide";
 import * as Clipboard from "expo-clipboard";
+import { useQueryClient } from "@tanstack/react-query";
+import ErrorState from "../../../components/reuseables/errorState";
+import { getPassengerName, getPassengerPhone } from "../../../utils/passenger";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const BUTTON_GAP = 16;
@@ -58,7 +61,17 @@ function TripInProgress() {
     error,
     refetch,
   } = useGetRideTimeline(activeRide?.id);
-  const { data, isLoading } = useRideDetail(activeRide?.id);
+  const queryClient = useQueryClient();
+  // Drivers poll the ride so a rider/admin cancellation shows up mid-trip.
+  const {
+    data,
+    isLoading,
+    error: detailError,
+    refetch: refetchDetail,
+  } = useRideDetail(
+    activeRide?.id,
+    userRole === "driver" ? { refetchInterval: 15000 } : {},
+  );
   useEffect(() => {
     const loadToken = async () => {
       const t = await storage.getToken();
@@ -100,6 +113,56 @@ function TripInProgress() {
   const driverPhone =
     activeRide?.driver_phone ?? rideDetail?.driver_phone ?? null;
 
+  // Driver only: the ride was cancelled by the rider/admin while we were on it.
+  const rideWasCancelled =
+    isDriver &&
+    (data?.data?.status === "cancelled" ||
+      rideTimeline?.data?.at(-1)?.to_status === "cancelled");
+  const cancelHandledRef = useRef(false);
+  useEffect(() => {
+    if (!rideWasCancelled || cancelHandledRef.current) return;
+    cancelHandledRef.current = true;
+    queryClient.invalidateQueries({ queryKey: ["activeRide"] });
+    queryClient.invalidateQueries({ queryKey: ["ride-detail"] });
+    queryClient.invalidateQueries({ queryKey: ["rideTimeline"] });
+    queryClient.invalidateQueries({ queryKey: ["upcoming-rides"] });
+    queryClient.invalidateQueries({ queryKey: ["driver-trips"] });
+    queryClient.invalidateQueries({ queryKey: ["driver-stats"] });
+    const goHome = () =>
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "DriverMainTabs" }],
+      });
+    Alert.alert(
+      "Ride was cancelled",
+      "This ride has been cancelled. You will be taken back to Home.",
+      [{ text: "OK", onPress: goHome }],
+      { cancelable: false },
+    );
+  }, [rideWasCancelled]);
+
+  const passengerName =
+    getPassengerName(rideDetail) || getPassengerName(activeRide);
+  const passengerPhone =
+    getPassengerPhone(rideDetail) || getPassengerPhone(activeRide);
+
+  const callPassenger = async () => {
+    if (!passengerPhone) {
+      Alert.alert("Error", "Passenger phone number not available");
+      return;
+    }
+    const url = `tel:${passengerPhone.replace(/[^\d+]/g, "")}`;
+    try {
+      await Linking.openURL(url);
+    } catch (e) {
+      await Clipboard.setStringAsync(passengerPhone);
+      Alert.alert(
+        "Passenger phone number",
+        `${passengerPhone}\n\nPhone dialer is not available on this device, so the number has been copied.`,
+      );
+    }
+  };
+
   // Run Rider listening hook ONLY if user is a rider
   const { driverLocation, eta } = useRideTracking(
     isRider ? activeRide?.id : null,
@@ -133,6 +196,26 @@ function TripInProgress() {
       );
     }
   };
+
+  // Driver only: the ride no longer exists (404). Offer a way out instead of a
+  // map with stale data.
+  if (
+    isDriver &&
+    !data &&
+    !isLoading &&
+    (detailError as any)?.response?.status === 404
+  ) {
+    return (
+      <ErrorState
+        title="Ride unavailable"
+        message="This ride could not be found. It may have been removed."
+        onRetry={() => refetchDetail()}
+        onBack={() =>
+          navigation.reset({ index: 0, routes: [{ name: "DriverMainTabs" }] })
+        }
+      />
+    );
+  }
 
   return (
     <View>
@@ -417,12 +500,29 @@ function TripInProgress() {
                 />
               )}
 
-              {currentRideStatus === "driver_arrived" && (
-                <Buttons
-                  title="Resend notification"
-                  type="outline"
-                  onPress={() => {}}
-                />
+              {!!passengerName && (
+                <Text
+                  style={[
+                    commonStyling.title,
+                    {
+                      fontSize: 16,
+                      fontFamily: "SemiBold",
+                      textAlign: "center",
+                      marginBottom: 8,
+                    },
+                  ]}
+                >
+                  Passenger: {passengerName}
+                </Text>
+              )}
+              {!!passengerPhone && (
+                <View style={{ marginBottom: 8 }}>
+                  <Buttons
+                    title="Call Passenger"
+                    type="outline"
+                    onPress={callPassenger}
+                  />
+                </View>
               )}
 
               {(currentRideStatus === "driver_en_route" ||
@@ -478,6 +578,7 @@ function TripInProgress() {
                           onSuccess: (responseData) => {
                             navigation.navigate("DriverRideDetailsStack", {
                               screen: "CompletedRide",
+                              params: { passengerName },
                             });
                           },
                         },

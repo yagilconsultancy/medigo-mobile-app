@@ -13,9 +13,7 @@ import {
   Bell,
   MessageSquare,
   DollarSign,
-  Shield,
   Star,
-  TrendingUp,
 } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -23,22 +21,39 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import useTheme from "../../../hooks/useThemes";
 import { commonStyles } from "../../../styles/commonStyles";
 import Header from "../../../components/reuseables/header";
+import { useDriverSettings } from "../../../hooks/queries/useDriverSettings";
+import { useUpdateNotifications } from "../../../hooks/mutations/useUser";
+import { UpdateNotificationsPayload } from "../../../types/user.types";
 
 const NotificationSettingsScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const { colors, theme } = useTheme();
   const commonStyling = commonStyles(colors);
-  const [settings, setSettings] = useState({
-    rideUpdates: true,
-    messages: true,
-    payments: true,
-    safety: false,
-    promotions: false,
-    news: false,
-  });
+  // Same /users/me/settings endpoint the driver app uses; it serves any user.
+  const { data } = useDriverSettings();
+  const serverSettings = data?.data as
+    | Partial<Record<keyof UpdateNotificationsPayload, boolean>>
+    | undefined;
+  const { mutate: updateNotify } = useUpdateNotifications();
+  // Optimistic values so a switch moves instantly; dropped once the save settles.
+  const [pending, setPending] = useState<UpdateNotificationsPayload>({});
 
-  const toggleSetting = (key: keyof typeof settings) => {
-    setSettings((prev) => ({ ...prev, [key]: !prev[key] }));
+  const valueOf = (key: keyof UpdateNotificationsPayload) =>
+    pending[key] ?? !!serverSettings?.[key];
+
+  const toggleSetting = (key: keyof UpdateNotificationsPayload) => {
+    const next = !valueOf(key);
+    setPending((prev) => ({ ...prev, [key]: next }));
+    updateNotify(
+      { [key]: next },
+      {
+        onSettled: () =>
+          setPending((prev) => {
+            const { [key]: _removed, ...rest } = prev;
+            return rest;
+          }),
+      },
+    );
   };
 
   return (
@@ -78,8 +93,8 @@ const NotificationSettingsScreen = () => {
           bgColor={colors.surfaceBrand}
           title="Ride Updates"
           sub="Driver assignment, arrival, and trip updates"
-          value={settings.rideUpdates}
-          onToggle={() => toggleSetting("rideUpdates")}
+          value={valueOf("push_ride_updates")}
+          onToggle={() => toggleSetting("push_ride_updates")}
         />
 
         <NotificationToggle
@@ -87,26 +102,17 @@ const NotificationSettingsScreen = () => {
           bgColor={colors.surfaceBrand}
           title="Messages"
           sub="Messages from drivers and support"
-          value={settings.messages}
-          onToggle={() => toggleSetting("messages")}
+          value={valueOf("push_chat_messages")}
+          onToggle={() => toggleSetting("push_chat_messages")}
         />
 
         <NotificationToggle
           icon={<DollarSign size={20} color={colors.primaryColor} />}
           bgColor={colors.surfaceBrand}
           title="Payment Notifications"
-          sub="Receipts, payment confirmations, and refunds"
-          value={settings.payments}
-          onToggle={() => toggleSetting("payments")}
-        />
-
-        <NotificationToggle
-          icon={<Shield size={20} color={colors.primaryColor} />}
-          bgColor={colors.surfaceBrand}
-          title="Safety Alerts"
-          sub="Important safety updates and reminders"
-          value={settings.safety}
-          onToggle={() => toggleSetting("safety")}
+          sub="Email receipts for your rides"
+          value={valueOf("email_ride_receipts")}
+          onToggle={() => toggleSetting("email_ride_receipts")}
         />
 
         {/* MARKETING SECTION */}
@@ -129,17 +135,8 @@ const NotificationSettingsScreen = () => {
           bgColor="#F1F5F9"
           title="Promotions & Offers"
           sub="Special deals, discounts, and rewards"
-          value={settings.promotions}
-          onToggle={() => toggleSetting("promotions")}
-        />
-
-        <NotificationToggle
-          icon={<TrendingUp size={20} color="#64748B" />}
-          bgColor="#F1F5F9"
-          title="News & Updates"
-          sub="MediGo product updates and features"
-          value={settings.news}
-          onToggle={() => toggleSetting("news")}
+          value={valueOf("push_promotions")}
+          onToggle={() => toggleSetting("push_promotions")}
         />
 
         {/* Footer Banner */}

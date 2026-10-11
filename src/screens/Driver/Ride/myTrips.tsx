@@ -15,7 +15,10 @@ import { commonStyles } from "../../../styles/commonStyles";
 import useTheme from "../../../hooks/useThemes";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useDriverUpcomingRides } from "../../../hooks/queries/useDriverUpcomingRide";
+import {
+  useDriverTrips,
+  DriverTripTab,
+} from "../../../hooks/queries/useDriverTrips";
 import { formatDate } from "date-fns";
 import { formatDateReadable } from "../../../utils/formatDate";
 import formatScheduledDate from "../../../utils/formatScheduleDate";
@@ -28,9 +31,20 @@ const MyTripsScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const [refreshing, setRefreshing] = useState(false);
 
-  const { data: driverUpcomingRides, isLoading, refetch } =
-    useDriverUpcomingRides();
-  const trips = driverUpcomingRides?.data || [];
+  const [activeTab, setActiveTab] = useState<DriverTripTab>("upcoming");
+  const { data: driverTrips, isLoading, refetch } = useDriverTrips(activeTab);
+  const trips = driverTrips?.data || [];
+
+  const tabs: { key: DriverTripTab; label: string }[] = [
+    { key: "upcoming", label: "Upcoming" },
+    { key: "completed", label: "Completed" },
+    { key: "cancelled", label: "Cancelled" },
+  ];
+  const emptyText: Record<DriverTripTab, string> = {
+    upcoming: "No upcoming trips",
+    completed: "No completed trips yet",
+    cancelled: "No cancelled trips",
+  };
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -40,8 +54,6 @@ const MyTripsScreen = () => {
       setRefreshing(false);
     }
   }, [refetch]);
-
-  console.log(trips);
 
   return (
     <SafeAreaView
@@ -58,6 +70,36 @@ const MyTripsScreen = () => {
 
       <Header title="My Trips" />
 
+      <View style={styles.tabContainer}>
+        {tabs.map((tab) => {
+          const isActive = tab.key === activeTab;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              style={[
+                styles.tab,
+                {
+                  backgroundColor: isActive
+                    ? colors.primaryColor
+                    : colors.surfaceSecondary,
+                },
+              ]}
+              onPress={() => setActiveTab(tab.key)}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  { color: isActive ? "#FFF" : colors.textSecondary },
+                ]}
+              >
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
@@ -69,7 +111,18 @@ const MyTripsScreen = () => {
           />
         }
       >
-        {trips.length <= 0 && (
+        {isLoading && (
+          <Text
+            style={[
+              commonStyling.subtitle,
+              { fontSize: 14, textAlign: "center" },
+            ]}
+          >
+            Loading...
+          </Text>
+        )}
+
+        {!isLoading && trips.length <= 0 && (
           <Text
             style={[
               commonStyling.title,
@@ -79,7 +132,7 @@ const MyTripsScreen = () => {
               },
             ]}
           >
-            No trips
+            {emptyText[activeTab]}
           </Text>
         )}
 
@@ -105,6 +158,33 @@ const MyTripsScreen = () => {
               >
                 {formatScheduledDate(trip.scheduled_at)}
               </Text>
+              {activeTab !== "upcoming" && (
+                <View
+                  style={[
+                    styles.statusBadge,
+                    {
+                      backgroundColor:
+                        trip.status === "completed" ? "#DCFCE7" : "#FEE2E2",
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusText,
+                      {
+                        color:
+                          trip.status === "completed" ? "#15803D" : "#B91C1C",
+                      },
+                    ]}
+                  >
+                    {trip.status === "completed"
+                      ? "Completed"
+                      : trip.status === "no_show"
+                        ? "No show"
+                        : "Cancelled"}
+                  </Text>
+                </View>
+              )}
             </View>
 
            {trip.rider_name && (<View style={styles.riderRow}>
@@ -192,7 +272,7 @@ const MyTripsScreen = () => {
                     },
                   ]}
                 >
-                  Trip fare
+                  {activeTab === "completed" ? "Trip fare" : "Estimated fare"}
                 </Text>
               </View>
               <TouchableOpacity

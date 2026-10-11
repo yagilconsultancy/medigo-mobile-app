@@ -23,12 +23,14 @@ import {
 } from "../../../hooks/queries/useDriverRatings";
 import { LinearGradient } from "expo-linear-gradient";
 import { useDriverUpcomingRides } from "../../../hooks/queries/useDriverUpcomingRide";
+import { useDriverProfile } from "../../../hooks/queries/useDriverProfile";
 import { useUpdateDriverStatus } from "../../../hooks/mutations/useUser";
 import { RiderHomeSkeleton } from "../../../components/skelentonAnimation/riderHomeSkelento";
 import { formatHumanReadableDate } from "../../../utils/formatHumanReadableDate";
 import locationTrackingService from "../../../services/locationTrackingService";
 import RideRouteCard from "../../../components/map/rideRouteCard";
 import { formatDisplayText } from "../../../utils/formatText";
+import { getGreeting } from "../../../utils/getGreeting";
 
 const { width } = Dimensions.get("window");
 
@@ -37,12 +39,17 @@ const DriverDashboard = () => {
   const { colors, theme } = useTheme();
   const commonStyling = commonStyles(colors);
 
-  const [isOnline, setIsOnline] = useState(user?.data?.is_active ?? false);
+  // The switch reflects the driver's own is_online flag (driver profile), not
+  // the account-level is_active flag.
+  const { data: driverProfile, refetch: refetchDriverProfile } =
+    useDriverProfile();
+  const serverIsOnline = driverProfile?.data?.is_online;
+  const [isOnline, setIsOnline] = useState(serverIsOnline ?? false);
   useEffect(() => {
-    if (user?.data?.is_active !== undefined) {
-      setIsOnline(user.data.is_active);
+    if (serverIsOnline !== undefined) {
+      setIsOnline(serverIsOnline);
     }
-  }, [user?.data?.is_active]);
+  }, [serverIsOnline]);
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const {
     data: statsData,
@@ -69,11 +76,17 @@ const DriverDashboard = () => {
         refetchStats(),
         refetchRatings(),
         refetchUpcomingRides(),
+        refetchDriverProfile(),
       ]);
     } finally {
       setRefreshing(false);
     }
-  }, [refetchStats, refetchRatings, refetchUpcomingRides]);
+  }, [
+    refetchStats,
+    refetchRatings,
+    refetchUpcomingRides,
+    refetchDriverProfile,
+  ]);
 
   const handleToggleOnline = (value: boolean) => {
     // Update UI immediately for a snappy feel
@@ -99,7 +112,9 @@ const DriverDashboard = () => {
     return () => {
       locationTrackingService.disconnect();
     };
-  }, [user]);
+    // Depend on sign-in state only, so profile updates do not drop the socket.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!user]);
 
   if (isLoading || statsLoading) {
     return <RiderHomeSkeleton />;
@@ -141,7 +156,7 @@ const DriverDashboard = () => {
                   },
                 ]}
               >
-                Good afternoon
+                {getGreeting()}
               </Text>
               <Text
                 style={[

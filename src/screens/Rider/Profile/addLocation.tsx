@@ -19,6 +19,7 @@ import {
   Star,
   Zap,
 } from "lucide-react-native";
+import Toast from "react-native-toast-message";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -33,7 +34,7 @@ import GoogleInput from "../../../components/inputs/googleInput";
 const AddLocationScreen = () => {
   const [locationType, setLocationType] = useState("work");
   const [isFavorite, setIsFavorite] = useState(true);
-  const [isDefault, setIsDefault] = useState(true);
+  const [isDefault, setIsDefault] = useState(false);
   const [loading, setloading] = useState(false);
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const { colors, theme } = useTheme();
@@ -41,19 +42,41 @@ const AddLocationScreen = () => {
   const [form, setForm] = useState({
     label: "",
     address: "",
-    latitude: 0,
-    longitude: 0,
+    latitude: null as number | null,
+    longitude: null as number | null,
+    place_id: "",
+    // Address text of the place the user actually picked from the list.
+    selectedAddress: "",
   });
 
   const createLocationMutation = useCreateLocationMutation();
 
+  const showError = (message: string) =>
+    Toast.show({ type: "errorToast", text1: "Error", text2: message });
+
   const handleSaveAddress = () => {
+    if (!form.label.trim()) {
+      showError("Please enter a name for this location.");
+      return;
+    }
+
+    const hasPickedPlace =
+      form.latitude !== null &&
+      form.longitude !== null &&
+      !!form.selectedAddress &&
+      form.address === form.selectedAddress;
+    if (!hasPickedPlace) {
+      showError("Please choose an address from the suggestions list.");
+      return;
+    }
+
     const newLocation: CreateLocationPayload = {
-      label: form.label,
+      label: form.label.trim(),
       location_type: locationType,
       address: form.address,
-      latitude: form.latitude,
-      longitude: form.longitude,
+      latitude: form.latitude as number,
+      longitude: form.longitude as number,
+      ...(form.place_id ? { place_id: form.place_id } : {}),
       is_default: isDefault,
     };
 
@@ -72,8 +95,10 @@ const AddLocationScreen = () => {
     setForm((prev) => ({
       ...prev,
       address: data.address,
+      selectedAddress: data.address,
       latitude: data.latitude,
       longitude: data.longitude,
+      place_id: data.place_id ?? "",
     }));
   };
 

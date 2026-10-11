@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   StyleSheet,
   View,
@@ -42,7 +42,6 @@ import {
 } from "../../../hooks/mutations/useRide";
 import { formatDuration } from "../../../utils/formatDuration";
 import { formatPrice } from "../../../utils/formatPrice";
-import { useGetFareEstimateMutation } from "../../../hooks/queries/useGetBaseFareEstimate";
 import RideRouteCard from "../../../components/map/rideRouteCard";
 import { formatDisplayText } from "../../../utils/formatText";
 import { useDriverContact } from "../../../hooks/queries/useDriverContact";
@@ -68,32 +67,10 @@ const RideDetails = () => {
   const [comment, setComment] = useState("");
   const givenRating: any = data?.data.driver_rating;
 
-  const {
-    mutate: fetchEstimates,
-    isPending:isPendingBaseFareEstimate,
-    data: estimateResults,
-  } = useGetFareEstimateMutation();
-
-  const handleCalculateFare = () => {
-    fetchEstimates({
-      pickup_address: data?.data.pickup_address,
-      destination_address: data?.data.destination_address,
-      pickup_latitude: data?.data.pickup_latitude,
-      pickup_longitude: data?.data.pickup_longitude,
-      destination_latitude: data?.data.destination_latitude,
-      destination_longitude: data?.data.destination_longitude,
-      ride_type: data?.data.ride_type ?? '',
-      trip_type: data?.data.trip_type ?? '',
-      trip_structure: data?.data.trip_structure ?? '',
-    });
-  };
-
-  useEffect(() => {
-    if (!data) {
-      return;
-    }
-    handleCalculateFare();
-  }, [data]);
+  // Show the fare stored on the ride (final if the trip is done, otherwise the
+  // estimate saved at booking) instead of re-pricing it live.
+  const fareDetails: any = (data?.data as any)?.fare_estimate_details ?? null;
+  const storedFare = data?.data.final_fare ?? data?.data.estimated_fare;
 
   const reasons = [
     { id: "1", text: "Driver taking too long" },
@@ -115,7 +92,7 @@ const RideDetails = () => {
   }
 
   // 3. Keep your existing skeleton check
-  if (isLoading || !data || isPendingBaseFareEstimate) {
+  if (isLoading || !data) {
     return <RideDetailsSkeleton />;
   }
 
@@ -420,21 +397,24 @@ const RideDetails = () => {
           >
             Fare Details
           </Text>
-          {!isCompleted && (
+          {!isCompleted && fareDetails?.base_fare != null && (
             <>
-          <FareRow
-            label="Base fare"
-            value={formatPrice(estimateResults?.data.base_fare, true)}
-          />
-          <FareRow
-            label="Distance charge"
-            value={formatPrice(estimateResults?.data.distance_charge, true)}
-          />
-
+              <FareRow
+                label="Base fare"
+                value={formatPrice(fareDetails.base_fare, true)}
+              />
+              {fareDetails.distance_charge != null && (
+                <FareRow
+                  label="Distance charge"
+                  value={formatPrice(fareDetails.distance_charge, true)}
+                />
+              )}
             </>
           )}
 
-          {!isCompleted && <View style={styles.fareDivider} />}
+          {!isCompleted && fareDetails?.base_fare != null && (
+            <View style={styles.fareDivider} />
+          )}
           <View style={styles.rowBetween}>
             <Text
               style={[
@@ -457,12 +437,7 @@ const RideDetails = () => {
                 },
               ]}
             >
-              {formatPrice(
-                isCompleted && data?.data.final_fare
-                  ? data.data.final_fare
-                  : estimateResults?.data.total_fare,
-                true,
-              )}
+              {storedFare != null ? formatPrice(storedFare, true) : "--"}
             </Text>
           </View>
         </View>

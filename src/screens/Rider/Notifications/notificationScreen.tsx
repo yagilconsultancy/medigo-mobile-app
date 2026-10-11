@@ -29,6 +29,8 @@ import { useNotifications } from "../../../hooks/queries/useNotifications";
 import { formatDistanceToNow } from "date-fns";
 import { NotificationsSkeleton } from "../../../components/skelentonAnimation/notificationsSkelenton";
 import { useUserStore } from "../../../store/userStore";
+import { useMarkNotificationRead } from "../../../hooks/mutations/useNotificationActions";
+import { NotificationItem as NotificationData } from "../../../types/notifications.types";
 
 const NotificationsScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
@@ -39,6 +41,34 @@ const NotificationsScreen = () => {
   const { data, isLoading } = useNotifications({
     limit: 20,
   });
+  const { mutate: markRead } = useMarkNotificationRead();
+  const role = user?.data?.role;
+
+  const handleNotificationPress = (item: NotificationData) => {
+    if (!item.is_read) {
+      markRead(item.id);
+    }
+
+    // `data` can be null/empty on notifications created without a payload.
+    const payload = item.data ?? {};
+    const rideId = payload.ride_id;
+    if (!rideId || typeof rideId !== "string") return;
+
+    const screen = payload.screen;
+    if (screen !== "ride_detail" && screen !== "ride_history") return;
+
+    if (role === "rider") {
+      navigation.navigate("RiderRideDetailsStack", {
+        screen: "RideDetails",
+        params: { id: rideId },
+      });
+    } else if (role === "driver") {
+      navigation.navigate("DriverRideDetailsStack", {
+        screen: "RideDetails",
+        params: { id: rideId },
+      });
+    }
+  };
 
   // Helper to get Icon and Color based on type
   const getNotificationStyles = (type: string) => {
@@ -101,23 +131,15 @@ const NotificationsScreen = () => {
                 title={item.title}
                 description={item.body}
                 // Formatting "2026-03-17..." to "2 hours ago"
-                time={formatDistanceToNow(new Date(item.created_at), {
-                  addSuffix: true,
-                })}
+                time={
+                  item.created_at
+                    ? formatDistanceToNow(new Date(item.created_at), {
+                        addSuffix: true,
+                      })
+                    : ""
+                }
                 unread={!item.is_read}
-                onPress={() => {
-                  // Handle navigation based on item.data or type
-                  if (
-                    item.data.screen === "ride_detail" &&
-                    user.data.role === "rider"
-                  )
-                    navigation.navigate("RiderRideDetailsStack", {
-                      screen: "RideDetails",
-                      params: {
-                        id: item.data.ride_id,
-                      },
-                    });
-                }}
+                onPress={() => handleNotificationPress(item)}
               />
             );
           })

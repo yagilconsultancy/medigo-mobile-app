@@ -2,14 +2,16 @@ import { Image, Text, View } from "react-native";
 import Buttons from "../../../components/buttons/buttons";
 import useTheme from "../../../hooks/useThemes";
 import { commonStyles } from "../../../styles/commonStyles";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 function CompletedRide() {
   const { colors, theme } = useTheme();
   const commonStyling = commonStyles(colors);
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
-  
+  const route = useRoute<any>();
+  const passengerName: string = route.params?.passengerName ?? "";
+
   return (
     <View
       style={{
@@ -51,7 +53,9 @@ function CompletedRide() {
           },
         ]}
       >
-        Sarah has been dropped off safely
+        {passengerName
+          ? `${passengerName} has been dropped off safely`
+          : "Your passenger has been dropped off safely"}
       </Text>
       <Buttons
         title="Done"

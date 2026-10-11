@@ -1,11 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import rideService from "../../api/services/rideService";
 
-export const useRideDetail = (rideId: string) => {
+export const useRideDetail = (
+  rideId: string,
+  options: { refetchInterval?: number } = {},
+) => {
   return useQuery({
     queryKey: ["ride-detail", rideId],
     queryFn: () => rideService.getRideDetail(rideId),
     enabled: !!rideId, // Only run if a rideId is actually provided
     staleTime: 1000 * 30, // Data is fresh for 30 seconds
+    refetchInterval: options.refetchInterval ?? false, // opt-in polling
   });
 };

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import UnreadDot from "../../../components/reuseables/unreadDot";
 import {
   StyleSheet,
   View,
@@ -32,10 +33,11 @@ import { getLocationTypeStyles } from "../../../utils/getLocationTypeStyles";
 import LocationCard from "../../../components/cards/locationCard";
 import MapScreen from "../../../components/map/map";
 import { RiderHomeSkeleton } from "../../../components/skelentonAnimation/riderHomeSkelento";
-import { useMyRides } from "../../../hooks/queries/useMyRides";
+import { useUpcomingRides } from "../../../hooks/queries/useMyRides";
 import UpcomingRideCard from "../../../components/cards/upcomingRidesCard";
 import { useRideStore } from "../../../store/useRideStore";
 import GoogleInput from "../../../components/inputs/googleInput";
+import { getGreeting } from "../../../utils/getGreeting";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const SNAP_POINTS = [SCREEN_HEIGHT * 0.5, SCREEN_HEIGHT * 0.3];
@@ -53,7 +55,7 @@ const RiderHomeScreen = () => {
     data: upcomingData,
     isLoading: loadingUpcoming,
     refetch: refetchUpcomingRides,
-  } = useMyRides();
+  } = useUpcomingRides();
   const { colors, theme } = useTheme();
   const commonStyling = commonStyles(colors);
   const [refreshing, setRefreshing] = useState(false);
@@ -195,7 +197,7 @@ const RiderHomeScreen = () => {
                     },
                   ]}
                 >
-                  Good afternoon,
+                  {getGreeting()},
                 </Text>
                 <Text
                   style={[
@@ -222,7 +224,7 @@ const RiderHomeScreen = () => {
               }}
             >
               <Bell color={colors.titleText} size={24} />
-              <View style={styles.notifBadge} />
+              <UnreadDot style={styles.notifBadge} />
             </TouchableOpacity>
           </View>
 

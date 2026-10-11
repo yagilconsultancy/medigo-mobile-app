@@ -77,12 +77,12 @@ export interface VerifyOTPResponse {
 }
 
 export interface UpdateProfilePayload {
-  first_name: string;
-  last_name: string;
-  date_of_birth: string; // Format: YYYY-MM-DD
-  gender: string;
+  first_name?: string;
+  last_name?: string;
+  date_of_birth?: string; // Format: YYYY-MM-DD
+  gender?: string;
   avatar_url?: string;
-  home_address: string;
+  home_address?: string;
   medical_notes?: string;
 }
 
