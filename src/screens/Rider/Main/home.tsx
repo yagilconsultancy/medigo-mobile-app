@@ -36,6 +36,7 @@ import { useUpcomingRides } from "../../../hooks/queries/useMyRides";
 import UpcomingRideCard from "../../../components/cards/upcomingRidesCard";
 import { useRideStore } from "../../../store/useRideStore";
 import GoogleInput from "../../../components/inputs/googleInput";
+import { getGreeting } from "../../../utils/getGreeting";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const SNAP_POINTS = [SCREEN_HEIGHT * 0.5, SCREEN_HEIGHT * 0.3];
@@ -195,7 +196,7 @@ const RiderHomeScreen = () => {
                     },
                   ]}
                 >
-                  Good afternoon,
+                  {getGreeting()},
                 </Text>
                 <Text
                   style={[

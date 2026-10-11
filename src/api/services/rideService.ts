@@ -42,6 +42,17 @@ const rideService = {
     return response.data;
   },
 
+  getDriverTrips: async (
+    status: "upcoming" | "completed" | "cancelled",
+    page = 1,
+    limit = 50,
+  ): Promise<UpcomingRidesResponse> => {
+    const response = await apiClient.get("/rides/driver/trips", {
+      params: { status, page, limit },
+    });
+    return response.data;
+  },
+
   getRideDetail: async (rideId: string): Promise<RideDetailResponse> => {
     const response = await apiClient.get(`/rides/${rideId}`);
     return response.data;

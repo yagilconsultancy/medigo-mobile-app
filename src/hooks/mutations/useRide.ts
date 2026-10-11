@@ -60,6 +60,7 @@ export const useUpdateRideStatus = () => {
       });
       queryClient.invalidateQueries({ queryKey: ["rideTimeline"] });
       queryClient.invalidateQueries({ queryKey: ["upcoming-rides"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-trips"] });
       queryClient.invalidateQueries({ queryKey: ["my-rides"] });
       queryClient.invalidateQueries({ queryKey: ["rides-history"] });
       queryClient.invalidateQueries({ queryKey: ["driver-stats"] });
@@ -89,6 +90,7 @@ export const useCancelRide = (rideId: string) => {
       queryClient.invalidateQueries({ queryKey: ["rideTimeline"] });
       queryClient.invalidateQueries({ queryKey: ["activeRide"] });
       queryClient.invalidateQueries({ queryKey: ["upcoming-rides"] });
+      queryClient.invalidateQueries({ queryKey: ["driver-trips"] });
       queryClient.invalidateQueries({ queryKey: ["rides-history"] });
     },
     onError: (error: any) => {},

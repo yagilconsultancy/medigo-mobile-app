@@ -29,6 +29,7 @@ import { formatHumanReadableDate } from "../../../utils/formatHumanReadableDate"
 import locationTrackingService from "../../../services/locationTrackingService";
 import RideRouteCard from "../../../components/map/rideRouteCard";
 import { formatDisplayText } from "../../../utils/formatText";
+import { getGreeting } from "../../../utils/getGreeting";
 
 const { width } = Dimensions.get("window");
 
@@ -141,7 +142,7 @@ const DriverDashboard = () => {
                   },
                 ]}
               >
-                Good afternoon
+                {getGreeting()}
               </Text>
               <Text
                 style={[
