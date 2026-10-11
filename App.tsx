@@ -15,7 +15,6 @@ import DriverRideStack from "./src/navigations/driverRideStack";
 import DriverChatStack from "./src/navigations/driverChatStack";
 import DriverChatDetailsStack from "./src/navigations/driverChatDetailsStack";
 import DriverWalletStack from "./src/navigations/driverWalletStack";
-import DriverWalletDetailsStack from "./src/navigations/driverWalletDetailsStack";
 import DriverTripsStack from "./src/navigations/driverTripsStack";
 import RiderProfileStack from "./src/navigations/riderProfileStack";
 import DriverProfileStack from "./src/navigations/driverProfileStack";
@@ -108,10 +107,6 @@ const AppNavigator = () => {
       <Stack.Screen
         name="DriverRideDetailsStack"
         component={DriverRideDetailsStack}
-      />
-      <Stack.Screen
-        name="DriverWalletDetailsStack"
-        component={DriverWalletDetailsStack}
       />
       <Tab.Screen
         name="DriverChatDetailsStack"

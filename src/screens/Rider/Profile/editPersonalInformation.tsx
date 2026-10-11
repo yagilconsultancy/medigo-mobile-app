@@ -19,7 +19,10 @@ import { commonStyles } from "../../../styles/commonStyles";
 import Header from "../../../components/reuseables/header";
 import { useUserProfile } from "../../../hooks/queries/useUserProfile";
 import { UpdateProfilePayload } from "../../../types/auth.types";
-import { useUpdateProfileMutation } from "../../../hooks/mutations/useUser";
+import {
+  useUpdateProfileMutation,
+  useUploadAvatarMutation,
+} from "../../../hooks/mutations/useUser";
 import Buttons from "../../../components/buttons/buttons";
 
 const EditProfileScreen = () => {
@@ -33,6 +36,7 @@ const EditProfileScreen = () => {
     avatar_url: data?.data.avatar_url,
   });
   const updateProfileMutation = useUpdateProfileMutation();
+  const uploadAvatarMutation = useUploadAvatarMutation();
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const { colors, theme } = useTheme();
   const commonStyling = commonStyles(colors);
@@ -46,15 +50,23 @@ const EditProfileScreen = () => {
       first_name: form.firstName, // Pull these from your local component state
       last_name: form.lastName,
       medical_notes: form.medical_notes,
-      avatar_url: form.avatar_url,
       email: form.email,
     };
 
-    console.log(profileData);
+    const pickedLocalPhoto =
+      !!form.avatar_url && !/^https?:/.test(form.avatar_url)
+        ? form.avatar_url
+        : null;
 
     updateProfileMutation.mutate(profileData, {
       onSuccess: () => {
-        navigation.goBack();
+        if (pickedLocalPhoto) {
+          uploadAvatarMutation.mutate(pickedLocalPhoto, {
+            onSuccess: () => navigation.goBack(),
+          });
+        } else {
+          navigation.goBack();
+        }
       },
     });
   };
@@ -310,7 +322,9 @@ const EditProfileScreen = () => {
           <Buttons
             title="Save changes"
             onPress={handleBioSubmit}
-            loading={updateProfileMutation.isPending}
+            loading={
+              updateProfileMutation.isPending || uploadAvatarMutation.isPending
+            }
           />
         </View>
       </ScrollView>

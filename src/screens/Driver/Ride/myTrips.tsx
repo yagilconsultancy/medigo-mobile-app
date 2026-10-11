@@ -123,6 +123,7 @@ const MyTripsScreen = () => {
                 >
                   {trip.rider_name}
                 </Text>
+                {trip.rating != null && (
                 <View style={styles.ratingRow}>
                   <Star size={14} color="#F59E0B" fill="#F59E0B" />
                   <Text
@@ -137,6 +138,7 @@ const MyTripsScreen = () => {
                     {trip.rating}
                   </Text>
                 </View>
+                )}
               </View>
             </View>)}
 
@@ -190,7 +192,7 @@ const MyTripsScreen = () => {
                     },
                   ]}
                 >
-                  Estimated earnings
+                  Trip fare
                 </Text>
               </View>
               <TouchableOpacity

@@ -32,6 +32,28 @@ const userService = {
     return response.data;
   },
 
+  uploadAvatar: async (uri: string): Promise<UserProfileResponse> => {
+    const extension = (uri.split(".").pop() || "jpg").toLowerCase().split("?")[0];
+    const type =
+      extension === "png"
+        ? "image/png"
+        : extension === "webp"
+          ? "image/webp"
+          : "image/jpeg";
+    const form = new FormData();
+    form.append("avatar", {
+      uri,
+      name: `avatar.${extension === "jpg" ? "jpg" : extension}`,
+      type,
+    } as any);
+    const response: AxiosResponse<UserProfileResponse> = await apiClient.put(
+      "/users/me",
+      form,
+      { headers: { "Content-Type": "multipart/form-data" } },
+    );
+    return response.data;
+  },
+
   updateProfile: async (
     payload: UpdateProfilePayload,
   ): Promise<UserProfileResponse> => {

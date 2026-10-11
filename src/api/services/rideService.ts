@@ -65,6 +65,32 @@ const rideService = {
     return response.data;
   },
 
+  getMyRatings: async (): Promise<any> => {
+    const response = await apiClient.get("/rides/driver/ratings");
+    return response.data;
+  },
+
+  getDriverStats: async (): Promise<any> => {
+    const response = await apiClient.get("/rides/driver/stats");
+    return response.data;
+  },
+
+  getDriverContact: async (rideId: string): Promise<any> => {
+    const response = await apiClient.get(`/rides/${rideId}/driver-contact`);
+    return response.data;
+  },
+
+  submitDriverRating: async (
+    rideId: string,
+    payload: { rating: number; comment?: string },
+  ): Promise<any> => {
+    const response = await apiClient.post(`/rides/${rideId}/rating`, {
+      ...payload,
+      rating_type: "rider_to_driver",
+    });
+    return response.data;
+  },
+
   shareRideLink: async (rideId: string): Promise<ShareRideResponse> => {
     const response = await apiClient.post(`/rides/${rideId}/share`, {});
     return response.data;
