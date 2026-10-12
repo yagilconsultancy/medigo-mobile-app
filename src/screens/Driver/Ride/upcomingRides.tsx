@@ -22,7 +22,6 @@ import { useDriverUpcomingRides } from "../../../hooks/queries/useDriverUpcoming
 import { UpcomingRidesSkeleton } from "../../../components/skelentonAnimation/upcomingRides";
 import { formatHumanReadableDate } from "../../../utils/formatHumanReadableDate";
 import { formatDisplayText } from "../../../utils/formatText";
-import { formatPrice } from "../../../utils/formatPrice";
 import { getPassengerName } from "../../../utils/passenger";
 
 const UpcomingRidesScreen = () => {
@@ -254,18 +253,6 @@ const UpcomingRidesScreen = () => {
                   {ride.estimated_distance_miles} mi
                 </Text>
               </View>
-              <Text
-                style={[
-                  styles.fareText,
-                  {
-                    fontSize: 20,
-                    fontFamily: "Bold",
-                    color: "#10B981",
-                  },
-                ]}
-              >
-                {formatPrice(ride.final_fare ?? ride.estimated_fare, true)}
-              </Text>
               <TouchableOpacity
                 style={styles.detailsButton}
                 onPress={() => {
@@ -391,10 +378,6 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   distanceRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  fareText: {
-    flex: 1,
-    textAlign: "center",
-  },
   detailsButton: { flexDirection: "row", alignItems: "center", gap: 2 },
 
   tabBar: {

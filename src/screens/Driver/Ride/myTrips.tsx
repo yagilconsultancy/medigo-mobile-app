@@ -23,7 +23,6 @@ import { formatDate } from "date-fns";
 import { formatDateReadable } from "../../../utils/formatDate";
 import formatScheduledDate from "../../../utils/formatScheduleDate";
 import RideRouteCard from "../../../components/map/rideRouteCard";
-import { formatPrice } from "../../../utils/formatPrice";
 
 const MyTripsScreen = () => {
   const { colors, theme } = useTheme();
@@ -250,31 +249,7 @@ const MyTripsScreen = () => {
                 },
               ]}
             >
-              <View>
-                <Text
-                  style={[
-                    commonStyling.title,
-                    {
-                      fontSize: 24,
-                      fontFamily: "Bold",
-                    },
-                  ]}
-                >
-                  {formatPrice(trip.estimated_fare, true)}
-                </Text>
-                <Text
-                  style={[
-                    styles.earningsLabel,
-                    commonStyling.subtitle,
-                    {
-                      fontSize: 11,
-                      fontFamily: "Medium",
-                    },
-                  ]}
-                >
-                  {activeTab === "completed" ? "Trip fare" : "Estimated fare"}
-                </Text>
-              </View>
+              <View />
               <TouchableOpacity
                 style={styles.viewTripButton}
                 onPress={() => {
@@ -418,7 +393,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     paddingTop: 16,
   },
-  earningsLabel: { marginTop: 2 },
   viewTripButton: { flexDirection: "row", alignItems: "center", gap: 4 },
 
   bottomNav: {

@@ -38,7 +38,6 @@ import {
 import RideRouteCard from "../../../components/map/rideRouteCard";
 import { milesToKm } from "../../../utils/milesToKilometer";
 import { formatDuration } from "../../../utils/formatDuration";
-import { formatPrice } from "../../../utils/formatPrice";
 import { formatDisplayText } from "../../../utils/formatText";
 import {
   getPassengerName,
@@ -512,48 +511,6 @@ const RideDetails = () => {
               )}
             </Text>
           </View>
-          <View
-            style={[
-              styles.metricItem,
-              {
-                borderColor: colors.lightPrimaryBlueBorder,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.metricIconBg,
-                {
-                  backgroundColor: colors.surfaceSecondary,
-                },
-              ]}
-            >
-              <Text style={styles.fareIcon}>$</Text>
-            </View>
-            <Text
-              style={[
-                styles.metricLabel,
-                commonStyling.subtitle,
-                {
-                  fontSize: 10,
-                },
-              ]}
-            >
-              Fare
-            </Text>
-            <Text
-              style={[
-                commonStyling.title,
-                {
-                  fontSize: 14,
-                  fontFamily: "Bold",
-                  color: "#10B981",
-                },
-              ]}
-            >
-              {formatPrice(data.data.estimated_fare, true)}
-            </Text>
-          </View>
         </View>
 
         {isFinished && (
@@ -902,7 +859,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 8,
   },
-  fareIcon: { fontSize: 18, fontWeight: "700", color: "#10B981" },
   metricLabel: { marginBottom: 4 },
 
   navigateButton: {
